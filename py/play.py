@@ -44,6 +44,13 @@ class UIState:
         self.status = "Ready"
         self.debug = True
         self.hovered: Optional[Tuple[int,int]] = None
+        self.focus: Optional[str] = None  # 'mode' | 'drop' | None
+        # Promotion selection state
+        self.promoting: bool = False
+        self.promotion_choices: List[str] = []
+        self.promote_index: int = 0
+        self.promotion_from: Optional[Tuple[int,int]] = None
+        self.promotion_to: Optional[Tuple[int,int]] = None
 
 def board_from_mouse(pos: Tuple[int,int]) -> Optional[Tuple[int,int]]:
     mx, my = pos
@@ -54,6 +61,17 @@ def layout_buttons(panel_width: int):
     dbg = pygame.Rect(BOARD_PX + 10, BOARD_PX - 120, panel_width - 20, 50)
     end = pygame.Rect(BOARD_PX + 10, BOARD_PX - 60, panel_width - 20, 50)
     return dbg, end
+
+def panel_click_rects(ui: UIState):
+    """패널의 Mode/Drop 라인 클릭 영역을 계산"""
+    panel_width = INFO_W + (DEBUG_W if ui.debug else 0)
+    x = BOARD_PX + 10
+    # draw()에서 y 시작은 8, 각 라인은 20px 간격
+    mode_y = 8 + 20 * 1
+    drop_y = 8 + 20 * 2
+    mode_rect = pygame.Rect(x, mode_y, panel_width - 20, 20)
+    drop_rect = pygame.Rect(x, drop_y, panel_width - 20, 20)
+    return mode_rect, drop_rect
 
 def draw(engine, ui: UIState, screen, font, info_font):
     panel_width = INFO_W + (DEBUG_W if ui.debug else 0)
@@ -97,18 +115,28 @@ def draw(engine, ui: UIState, screen, font, info_font):
     pygame.draw.rect(screen, PANEL_BG, panel)
     
     # 상단 정보
-    lines = [
-        f"Turn: {engine.turn}",
-        f"Mode: {ui.mode}",
-        f"Drop: {ui.drop_kind}",
-        f"Status: {ui.status}",
-        f"Debug: {'ON' if ui.debug else 'OFF'}",
-        "",
-    ]
+    # 상단 정보 라인 개별 렌더링 (포커스 강조)
     y = 8
-    for ln in lines:
-        surf = info_font.render(ln, True, PANEL_TEXT)
-        screen.blit(surf, (BOARD_PX + 10, y)); y += 20
+    # Turn
+    surf = info_font.render(f"Turn: {engine.turn}", True, PANEL_TEXT)
+    screen.blit(surf, (BOARD_PX + 10, y)); y += 20
+    # Mode (focus highlight)
+    mode_color = (255, 230, 120) if ui.focus == 'mode' else PANEL_TEXT
+    surf = info_font.render(f"Mode: {ui.mode}", True, mode_color)
+    screen.blit(surf, (BOARD_PX + 10, y)); y += 20
+    # Drop (focus highlight)
+    drop_color = (255, 230, 120) if ui.focus == 'drop' else PANEL_TEXT
+    surf = info_font.render(f"Drop: {ui.drop_kind}", True, drop_color)
+    screen.blit(surf, (BOARD_PX + 10, y)); y += 20
+    # Status
+    surf = info_font.render(f"Status: {ui.status}", True, PANEL_TEXT)
+    screen.blit(surf, (BOARD_PX + 10, y)); y += 20
+    # Debug
+    surf = info_font.render(f"Debug: {'ON' if ui.debug else 'OFF'}", True, PANEL_TEXT)
+    screen.blit(surf, (BOARD_PX + 10, y)); y += 20
+    # spacer
+    surf = info_font.render("", True, PANEL_TEXT)
+    screen.blit(surf, (BOARD_PX + 10, y)); y += 20
     
     # 포켓 정보 - 양쪽 배치
     pocket_y = y
@@ -137,8 +165,10 @@ def draw(engine, ui: UIState, screen, font, info_font):
     y = max(wy, by) + 10
     controls = [
         "Controls:",
-        "  M move | D drop | S stun",
-        "  Tab cycle drop",
+        "  Click 'Mode' or 'Drop' to focus",
+        "  Left/Right: Mode change (focus) | Drop kind (in Drop mode)",
+        "  M move | D drop | S stun (direct)",
+        "  Tab cycle drop (forward)",
         "  END TURN button",
         "  R reset | Q/Esc quit",
     ]
@@ -168,6 +198,26 @@ def draw(engine, ui: UIState, screen, font, info_font):
             surf = info_font.render(ln, True, (200,220,200))
             screen.blit(surf, (BOARD_PX + INFO_W + 10, hy)); hy += 18
 
+    # Promotion selection panel
+    if ui.promoting and ui.promotion_choices:
+        area = pygame.Rect(BOARD_PX + 10, BOARD_PX - 190, panel_width - 20, 80)
+        pygame.draw.rect(screen, (40, 40, 60), area)
+        pygame.draw.rect(screen, (140, 140, 200), area, 2)
+        title = info_font.render("Select Promotion", True, (255,255,255))
+        screen.blit(title, (area.x + 8, area.y + 6))
+        x = area.x + 8
+        y = area.y + 30
+        box_w, box_h = 44, 28
+        spacing = 8
+        for i, sym in enumerate(ui.promotion_choices):
+            rect = pygame.Rect(x, y, box_w, box_h)
+            color = (200, 200, 80) if i == ui.promote_index else (100, 100, 100)
+            pygame.draw.rect(screen, color, rect)
+            pygame.draw.rect(screen, (220, 220, 220), rect, 2)
+            t = info_font.render(sym, True, (20,20,20))
+            screen.blit(t, t.get_rect(center=rect.center))
+            x += box_w + spacing
+
     return dbg_btn, end_btn
 
 def main(engine):
@@ -179,6 +229,8 @@ def main(engine):
     info_font = pygame.font.SysFont("arial", 18)
     clock = pygame.time.Clock()
     running = True
+    MODE_ORDER = ["move", "drop", "succession", "stun"]
+    DROP_KINDS = ["P", "N", "B", "R", "Q", "K", "A", "G", "Kr", "W", "D", "L", "F", "C", "Cl", "Tr"]
 
     while running:
         clock.tick(30)
@@ -199,6 +251,68 @@ def main(engine):
                     ui.mode = "stun"
                 elif ev.key == pygame.K_TAB:
                     ui.drop_kind = engine.next_drop_kind(ui.drop_kind)
+                elif ev.key == pygame.K_LEFT:
+                    # Promotion selection active: cycle choice
+                    if ui.promoting and ui.promotion_choices:
+                        ui.promote_index = (ui.promote_index - 1) % len(ui.promotion_choices)
+                        ui.status = f"Promote: {ui.promotion_choices[ui.promote_index]}"
+                        continue
+                    # 좌우 화살표: 모드 포커스 시 모드 변경, 드롭 포커스 또는 드롭 모드일 때 드롭 종류 변경
+                    if ui.focus == 'mode':
+                        try:
+                            i = MODE_ORDER.index(ui.mode)
+                            ui.mode = MODE_ORDER[(i - 1) % len(MODE_ORDER)]
+                        except ValueError:
+                            ui.mode = MODE_ORDER[0]
+                    elif ui.focus == 'drop' or ui.mode == 'drop':
+                        try:
+                            i = DROP_KINDS.index(ui.drop_kind)
+                            ui.drop_kind = DROP_KINDS[(i - 1) % len(DROP_KINDS)]
+                        except ValueError:
+                            ui.drop_kind = DROP_KINDS[0]
+                    else:
+                        try:
+                            i = MODE_ORDER.index(ui.mode)
+                            ui.mode = MODE_ORDER[(i - 1) % len(MODE_ORDER)]
+                        except ValueError:
+                            ui.mode = MODE_ORDER[0]
+                elif ev.key == pygame.K_RIGHT:
+                    if ui.promoting and ui.promotion_choices:
+                        ui.promote_index = (ui.promote_index + 1) % len(ui.promotion_choices)
+                        ui.status = f"Promote: {ui.promotion_choices[ui.promote_index]}"
+                        continue
+                    if ui.focus == 'mode':
+                        try:
+                            i = MODE_ORDER.index(ui.mode)
+                            ui.mode = MODE_ORDER[(i + 1) % len(MODE_ORDER)]
+                        except ValueError:
+                            ui.mode = MODE_ORDER[0]
+                elif ev.key in (pygame.K_RETURN, pygame.K_SPACE):
+                    # Confirm promotion selection
+                    if ui.promoting and ui.promotion_choices and ui.promotion_from and ui.promotion_to:
+                        choice = ui.promotion_choices[ui.promote_index]
+                        ok = engine.promote_move(ui.promotion_from, ui.promotion_to, choice)
+                        ui.status = f"Promoted to {choice}" if ok else "Promotion failed"
+                        ui.promoting = False
+                        ui.promotion_choices = []
+                        ui.promote_index = 0
+                        ui.promotion_from = None
+                        ui.promotion_to = None
+                        ui.selected = None
+                        ui.targets = []
+                    elif ui.focus == 'drop' or ui.mode == 'drop':
+                        try:
+                            i = DROP_KINDS.index(ui.drop_kind)
+                            ui.drop_kind = DROP_KINDS[(i + 1) % len(DROP_KINDS)]
+                        except ValueError:
+                            ui.drop_kind = DROP_KINDS[0]
+                    else:
+                        try:
+                            i = MODE_ORDER.index(ui.mode)
+                            ui.mode = MODE_ORDER[(i + 1) % len(MODE_ORDER)]
+                        except ValueError:
+                            ui.mode = MODE_ORDER[0]
+                # Up/Down arrows removed per request
             elif ev.type == pygame.MOUSEMOTION:
                 ui.hovered = board_from_mouse(ev.pos)
             elif ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
@@ -211,6 +325,42 @@ def main(engine):
                     engine.end_turn()
                     ui.status = "Turn passed"
                     continue
+                # 패널 라인 클릭 포커스 설정
+                mode_rect, drop_rect = panel_click_rects(ui)
+                if mode_rect.collidepoint(ev.pos):
+                    ui.focus = 'mode'
+                    ui.status = "Focus: Mode"
+                    continue
+                if drop_rect.collidepoint(ev.pos):
+                    ui.focus = 'drop'
+                    ui.status = "Focus: Drop"
+                    continue
+                # Promotion choice click handling in panel area
+                if ui.promoting and ui.promotion_choices:
+                    panel_width = INFO_W + (DEBUG_W if ui.debug else 0)
+                    area = pygame.Rect(BOARD_PX + 10, BOARD_PX - 190, panel_width - 20, 80)
+                    if area.collidepoint(ev.pos):
+                        # Compute rects and check which is clicked
+                        x = area.x + 8
+                        y = area.y + 30
+                        box_w, box_h = 44, 28
+                        spacing = 8
+                        for i, sym in enumerate(ui.promotion_choices):
+                            rect = pygame.Rect(x, y, box_w, box_h)
+                            if rect.collidepoint(ev.pos):
+                                ui.promote_index = i
+                                ok = engine.promote_move(ui.promotion_from, ui.promotion_to, sym) if (ui.promotion_from and ui.promotion_to) else False
+                                ui.status = f"Promoted to {sym}" if ok else "Promotion failed"
+                                ui.promoting = False
+                                ui.promotion_choices = []
+                                ui.promote_index = 0
+                                ui.promotion_from = None
+                                ui.promotion_to = None
+                                ui.selected = None
+                                ui.targets = []
+                                break
+                            x += box_w + spacing
+                        continue
                 sq = board_from_mouse(ev.pos)
                 if sq:
                     x,y = sq
@@ -226,15 +376,28 @@ def main(engine):
                                 ui.selected = None
                                 ui.targets = []
                             elif (x,y) in ui.targets:
-                                ok = engine.move(ui.selected, (x,y))
-                                ui.status = "Moved" if ok else "Move failed"
-                                ui.selected = None
-                                ui.targets = []
+                                # Check promotion options before moving
+                                opts = engine.promotion_options(ui.selected, (x,y))
+                                if opts:
+                                    ui.promoting = True
+                                    ui.promotion_choices = opts
+                                    ui.promote_index = 0
+                                    ui.promotion_from = ui.selected
+                                    ui.promotion_to = (x,y)
+                                    ui.status = f"Choose promotion ({', '.join(opts)})"
+                                else:
+                                    ok = engine.move(ui.selected, (x,y))
+                                    ui.status = "Moved" if ok else "Move failed"
+                                    ui.selected = None
+                                    ui.targets = []
                             else:
                                 ui.status = "Not a legal target"
                     elif ui.mode == "drop":
                         ok = engine.drop(ui.drop_kind, x,y)
                         ui.status = "Dropped" if ok else "Drop failed"
+                    elif ui.mode == "succession":
+                        ok = engine.succession(x,y)
+                        ui.status = "Succession" if ok else "Succession failed"
                     elif ui.mode == "stun":
                         ok = engine.stun(x,y)
                         ui.status = "Stun" if ok else "Stun failed"

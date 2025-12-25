@@ -68,10 +68,12 @@ struct piece{
         }
         piece(colorType c, pieceType p) : cT(c), pT(p) {
             move_stack = 0;
+            setupStunStack();
             setupMoveChunk();
         }
         piece(colorType c, pieceType p, int stun) : cT(c), pT(p), stun_stack(stun) {
             move_stack = 0;
+            setupStunStack();
             setupMoveChunk();
         }
         piece(colorType c, pieceType p, int stun, int move) : cT(c), pT(p), stun_stack(stun), move_stack(move){
@@ -81,15 +83,15 @@ struct piece{
         void setupStunStackWithPosition(int file, int rank); //프로모션하는 기물을 위한 착수 위치를 고려한 스턴 스택 설정
 
         //getter
-        colorType getColor(){ return cT; }
-        pieceType getPieceType(){ return pT; }
-        int getStun() { return stun_stack; }
-        int getMove() { return move_stack; }
-        std::vector<moveChunk> getMoveChunk() { return mC; }
-        bool getIsRoyal() { return isRoyal; }
-        bool getIsPromotable() { return isPromotable; }
-        std::vector<pieceType> getPromotePool() { return promote_pool; }
-        std::vector<std::pair<int, int>> getPromotableSquare() { return promotable_square; }
+        colorType getColor() const { return cT; }
+        pieceType getPieceType() const { return pT; }
+        int getStun() const { return stun_stack; }
+        int getMove() const { return move_stack; }
+        std::vector<moveChunk> getMoveChunk() const { return mC; }
+        bool getIsRoyal() const { return isRoyal; }
+        bool getIsPromotable() const { return isPromotable; }
+        std::vector<pieceType> getPromotePool() const { return promote_pool; }
+        std::vector<std::pair<int, int>> getPromotableSquare() const { return promotable_square; }
 
         //setter
         void setStun(int s){
@@ -125,7 +127,7 @@ struct piece{
         }
 
         //기타 편의성 함수
-        bool isEmpty(){
+        bool isEmpty() const {
             if(pT == pieceType::NONE) return true;
             else return false;
         }
@@ -167,28 +169,20 @@ struct PGN{
             pT = pieceType::NONE;
         }
 
-        PGN(threatType tt, int fF, int fR, int tF, int tR) : 
-        fromFile(fF), fromRank(fR), tT(tt), toFile(tF), toRank(tR) { //이동 표현
-            mT = moveType::MOVE;
-            pT = pieceType::NONE;
+        PGN(colorType ct, threatType tt, int fF, int fR, int tF, int tR) :
+        mT(moveType::MOVE), fromFile(fF), fromRank(fR), tT(tt), toFile(tF), toRank(tR), cT(ct), pT(pieceType::NONE) { //이동 표현
         }
 
-        PGN(threatType tt, int fF, int fR, int tF, int tR, pieceType pt) : 
-        fromFile(fF), fromRank(fR), tT(tt), toFile(tF), toRank(tR), pT(pt) { //승격 표현
-            mT = moveType::PROMOTE;//불가능한 조합이 생기긴 하는데, 뭐 괜찮겠지 
+        PGN(colorType ct, threatType tt, int fF, int fR, int tF, int tR, pieceType pt) :
+        mT(moveType::PROMOTE), fromFile(fF), fromRank(fR), tT(tt), toFile(tF), toRank(tR), cT(ct), pT(pt) { //승격 표현
         }
 
-        PGN(int fF, int fR, moveType mt) : mT(mt), fromFile(fF), fromRank(fR) { //계승 표현
-            tT = threatType::NONE;
-            pT = pieceType::NONE;
-            toFile = 0;
-            toRank = 0;
+        PGN(colorType ct, int fF, int fR, moveType mt) :
+        mT(mt), fromFile(fF), fromRank(fR), tT(threatType::NONE), toFile(0), toRank(0), cT(ct), pT(pieceType::NONE) { //계승 표현
         }
 
-        PGN(int fF, int fR, colorType ct, pieceType pt) : fromFile(fF), fromRank(fR), cT(ct), pT(pt) { //착수 표현
-            tT = threatType::NONE;
-            toFile = 0;
-            toRank = 0;
+        PGN(colorType ct, int fF, int fR, pieceType pt) :
+        mT(moveType::ADD), fromFile(fF), fromRank(fR), tT(threatType::NONE), toFile(0), toRank(0), cT(ct), pT(pt) { //착수 표현
         }
 
         bool operator==(const PGN& compare) const {
@@ -204,24 +198,12 @@ struct PGN{
         }
 
         //getter
-        std::pair<int, int> getFromSquare() const {
-            return {fromFile, fromRank};
-        }
-        std::pair<int, int> getToSquare() const {
-            return {toFile, toRank};
-        }
-        threatType getThreatType() const {
-            return tT;
-        }
-        moveType getMoveType() const {
-            return mT;
-        }
-        pieceType getPieceType() const {
-            return pT;
-        }
-        colorType getColorType() const {
-            return cT;
-        }
+        std::pair<int, int> getFromSquare() const {return {fromFile, fromRank};}
+        std::pair<int, int> getToSquare() const {return {toFile, toRank};}
+        threatType getThreatType() const {return tT;}
+        moveType getMoveType() const {return mT;}
+        pieceType getPieceType() const {return pT;}
+        colorType getColorType() const {return cT;}
 };
 
 
@@ -275,9 +257,9 @@ class chessboard{
         void shiftPiece(int p1_file, int p1_rank, int p2_file, int p2_rank);
         void promotePiece(colorType cT, int file, int rank, pieceType promote);
 
-        std::vector<PGN> calcLegalMovesInOnePiece(int file, int rank);
-        std::vector<PGN> calcLegalPlacePiece();
-        std::vector<PGN> calcLegalSuccesion();
+        std::vector<PGN> calcLegalMovesInOnePiece(int file, int rank); //포지션에 따라 특정 기물의 합법 수를 계산 (이동 & 승격 PGN반환)
+        std::vector<PGN> calcLegalPlacePiece();//특정 색상의 플레이어가 기물을 놓을 수 있는 착수 지점을 계산 (착수 PGN 반환)
+        std::vector<PGN> calcLegalSuccesion();//승격 가능한 상태인지, 그리고 어떤 기물을 승격시킬 수 있는지를 계산 (계승 PGN반환)
 
         //행마법에 따라 보드를 조작하는 함수
         void updatePiece(PGN pgn); //기물의 threatType에 따라 보드 상태를 업데이트

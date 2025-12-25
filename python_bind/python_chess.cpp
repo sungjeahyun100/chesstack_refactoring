@@ -44,17 +44,36 @@ PYBIND11_MODULE(chess_ext, m) {
 		.value("SHIFT", threatType::SHIFT)
 		.export_values();
 
+	py::enum_<moveType>(m, "MoveType")
+		.value("NONE", moveType::NONE)
+		.value("MOVE", moveType::MOVE)
+		.value("ADD", moveType::ADD)
+		.value("SUCCESION", moveType::SUCCESION)
+		.value("PROMOTE", moveType::PROMOTE)
+		.export_values();
+
 	// PGN
 	py::class_<PGN>(m, "PGN")
-		.def(py::init<threatType, int, int, int, int>())
+		.def(py::init<>())  // 기본 생성자
+		.def(py::init<colorType, threatType, int, int, int, int>())  // 이동 표현
+		.def(py::init<colorType, threatType, int, int, int, int, pieceType>())  // 승격 표현
+		.def(py::init<colorType, int, int, moveType>())  // 계승 표현
+		.def(py::init<colorType, int, int, pieceType>())  // 착수 표현
 		.def("getFromSquare", &PGN::getFromSquare)
 		.def("getToSquare", &PGN::getToSquare)
 		.def("getThreatType", &PGN::getThreatType)
+		.def("getMoveType", &PGN::getMoveType)
+		.def("getPieceType", &PGN::getPieceType)
+		.def("getColorType", &PGN::getColorType)
 		.def("__repr__", [](const PGN &p){
 			auto f = p.getFromSquare();
 			auto t = p.getToSquare();
-			return std::string("PGN(from=(") + std::to_string(f.first) + "," + std::to_string(f.second) + ") -> (" +
-				   std::to_string(t.first) + "," + std::to_string(t.second) + "), type=" + std::to_string(static_cast<int>(p.getThreatType())) + ")";
+			return std::string("PGN(moveType=") + std::to_string(static_cast<int>(p.getMoveType())) +
+				   ", color=" + std::to_string(static_cast<int>(p.getColorType())) +
+				   ", from=(" + std::to_string(f.first) + "," + std::to_string(f.second) + ")" +
+				   " -> (" + std::to_string(t.first) + "," + std::to_string(t.second) + ")" +
+				   ", threatType=" + std::to_string(static_cast<int>(p.getThreatType())) +
+				   ", pieceType=" + std::to_string(static_cast<int>(p.getPieceType())) + ")";
 		});
 
 	// Piece (minimal readonly/introspection)
@@ -93,6 +112,8 @@ PYBIND11_MODULE(chess_ext, m) {
 		.def("displayPieceInfo", &chessboard::displayPieceInfo)
 		.def("isInBounds", &chessboard::isInBounds)
 		.def("calcLegalMovesInOnePiece", &chessboard::calcLegalMovesInOnePiece)
+		.def("calcLegalPlacePiece", &chessboard::calcLegalPlacePiece)
+		.def("calcLegalSuccesion", &chessboard::calcLegalSuccesion)
 		.def("updatePiece", &chessboard::updatePiece)
 		.def("pieceStackControllByColor", &chessboard::pieceStackControllByColor)
 		.def("getWhitePocket", [](const chessboard &b) { return b.getWhitePocket(); })

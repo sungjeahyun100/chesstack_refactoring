@@ -134,15 +134,46 @@ class ChessEngineAdapter:
         pgns = self._board.calcLegalMovesInOnePiece(file, rank)
         targets = []
         for pgn in pgns:
-            # PGN 객체에서 목적지 좌표 추출
-            # pgn.end_file, pgn.end_rank 같은 속성이 있다고 가정
-            # 실제 API에 맞춰 조정 필요
-            try:
-                targets.append((pgn.end_file, pgn.end_rank))
-            except AttributeError:
-                # PGN 구조를 모르면 일단 스킵
-                pass
+            to_square = pgn.getToSquare()
+            targets.append((to_square[0], to_square[1]))
         return targets
+
+    def legal_placements(self, color: Optional[str] = None) -> List[Tuple[str, int, int]]:
+        """
+        착수 가능한 모든 (기물타입, file, rank) 리스트 반환
+        color: 'white', 'black' 또는 None(현재 턴 색상)
+        """
+        if color is None:
+            color = self._turn_color
+        
+        pgns = self._board.calcLegalPlacePiece()
+        placements = []
+        for pgn in pgns:
+            pgn_color = COLOR_TO_STR.get(pgn.getColorType(), "none")
+            if pgn_color != color:
+                continue
+            from_square = pgn.getFromSquare()
+            piece_type = PIECE_TYPE_TO_STR.get(pgn.getPieceType(), "?")
+            placements.append((piece_type, from_square[0], from_square[1]))
+        return placements
+
+    def legal_successions(self, color: Optional[str] = None) -> List[Tuple[int, int]]:
+        """
+        계승 가능한 모든 (file, rank) 리스트 반환
+        color: 'white', 'black' 또는 None(현재 턴 색상)
+        """
+        if color is None:
+            color = self._turn_color
+        
+        pgns = self._board.calcLegalSuccesion()
+        successions = []
+        for pgn in pgns:
+            pgn_color = COLOR_TO_STR.get(pgn.getColorType(), "none")
+            if pgn_color != color:
+                continue
+            from_square = pgn.getFromSquare()
+            successions.append((from_square[0], from_square[1]))
+        return successions
 
     def move(self, src: Tuple[int, int], dst: Tuple[int, int]) -> bool:
         """
@@ -152,7 +183,81 @@ class ChessEngineAdapter:
         sf, sr = src
         df, dr = dst
         try:
-            self._board.movePiece(sf, sr, df, dr)
+            # 합법적 이동 PGN 중에서 목적지가 일치하는 것 찾기
+            legal_pgns = self._board.calcLegalMovesInOnePiece(sf, sr)
+            matching_pgn = None
+            for pgn in legal_pgns:
+                to_sq = pgn.getToSquare()
+                to_f, to_r = to_sq
+                if to_f == df and to_r == dr:
+                    matching_pgn = pgn
+                    break
+            
+            if matching_pgn is None:
+                return False
+            
+            self._board.updatePiece(matching_pgn)
+            self._board(df, dr).minusOneMove()
+            self._last_move = (src, dst)
+            return True
+        except Exception:
+            return False
+
+    def promotion_options(self, src: Tuple[int, int], dst: Tuple[int, int]) -> List[str]:
+        """
+        src->dst가 프로모션일 경우 선택 가능한 승격 기물 심볼 리스트를 반환.
+        """
+        sf, sr = src
+        df, dr = dst
+        options: List[str] = []
+        try:
+            legal_pgns = self._board.calcLegalMovesInOnePiece(sf, sr)
+            for pgn in legal_pgns:
+                to_sq = pgn.getToSquare()
+                to_f, to_r = to_sq
+                if to_f == df and to_r == dr:
+                    # MoveType.PROMOTE인 경우만 수집
+                    try:
+                        if pgn.getMoveType() == chess_ext.MoveType.PROMOTE:
+                            sym = PIECE_TYPE_TO_STR.get(pgn.getPieceType(), "?")
+                            if sym and sym not in options:
+                                options.append(sym)
+                    except Exception:
+                        # MoveType 바인딩이 없거나 접근 실패 시 무시
+                        pass
+        except Exception:
+            pass
+        return options
+
+    def promote_move(self, src: Tuple[int, int], dst: Tuple[int, int], piece_type_str: str) -> bool:
+        """
+        선택한 승격 기물로 프로모션 이동 실행.
+        """
+        sf, sr = src
+        df, dr = dst
+        pt = STR_TO_PIECE_TYPE.get(piece_type_str)
+        if pt is None:
+            return False
+        try:
+            legal_pgns = self._board.calcLegalMovesInOnePiece(sf, sr)
+            chosen = None
+            for pgn in legal_pgns:
+                to_sq = pgn.getToSquare()
+                to_f, to_r = to_sq
+                if to_f == df and to_r == dr:
+                    try:
+                        if pgn.getMoveType() == chess_ext.MoveType.PROMOTE and pgn.getPieceType() == pt:
+                            chosen = pgn
+                            break
+                    except Exception:
+                        pass
+            if chosen is None:
+                return False
+            self._board.updatePiece(chosen)
+            try:
+                self._board(df, dr).minusOneMove()
+            except Exception:
+                pass
             self._last_move = (src, dst)
             return True
         except Exception:
@@ -168,7 +273,9 @@ class ChessEngineAdapter:
             return False
         ct = chess_ext.ColorType.WHITE if self._turn_color == "white" else chess_ext.ColorType.BLACK
         try:
-            self._board.placePiece(ct, pt, file, rank)
+            # ADD PGN 생성 (colorType, file, rank, pieceType)
+            pgn = chess_ext.PGN(ct, file, rank, pt)
+            self._board.updatePiece(pgn)
             return True
         except Exception:
             return False
@@ -182,6 +289,23 @@ class ChessEngineAdapter:
             if p.getPieceType() == chess_ext.PieceType.NONE:
                 return False
             p.addOneStun()
+            return True
+        except Exception:
+            return False
+
+    def succession(self, file: int, rank: int) -> bool:
+        """
+        해당 위치 기물을 왕위 계승 (로얄로 만들기)
+        반환: 성공 여부
+        """
+        try:
+            p = self._board(file, rank)
+            if p.getPieceType() == chess_ext.PieceType.NONE:
+                return False
+            ct = p.getColor()
+            # SUCCESION PGN 생성 (colorType, file, rank, moveType)
+            pgn = chess_ext.PGN(ct, file, rank, chess_ext.MoveType.SUCCESION)
+            self._board.updatePiece(pgn)
             return True
         except Exception:
             return False
