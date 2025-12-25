@@ -63,6 +63,9 @@ class ChessEngineAdapter:
         self._board = chess_ext.ChessBoard()
         self._turn_color = "white"  # white starts
         self._last_move: Optional[Tuple[Tuple[int, int], Tuple[int, int]]] = None
+        # 한 턴에 한 기물만 여러 번 이동 가능, 비-이동 행동은 턴을 소모
+        self._turn_action_locked: bool = False
+        self._turn_moving_piece_pos: Optional[Tuple[int, int]] = None
         
 
     @property
@@ -180,6 +183,12 @@ class ChessEngineAdapter:
         기물 이동 시도
         반환: 성공 여부
         """
+        # 비-이동 행동을 수행했다면 이동 불가
+        if self._turn_action_locked:
+            return False
+        # 이미 이번 턴에 이동 중인 기물이 있다면 그 기물만 계속 이동 가능
+        if self._turn_moving_piece_pos is not None and src != self._turn_moving_piece_pos:
+            return False
         sf, sr = src
         df, dr = dst
         try:
@@ -195,10 +204,32 @@ class ChessEngineAdapter:
             
             if matching_pgn is None:
                 return False
-            
+
+            # 캡처 대상의 스택을 이동 전에 확보
+            captured_stun = 0
+            captured_move = 0
+            try:
+                mover_color = self._board(sf, sr).getColor()
+                target_piece = self._board(df, dr)
+                if target_piece.getPieceType() != chess_ext.PieceType.NONE and target_piece.getColor() != mover_color:
+                    captured_stun = target_piece.getStun()
+                    captured_move = target_piece.getMove()
+            except Exception:
+                pass
+
             self._board.updatePiece(matching_pgn)
-            self._board(df, dr).minusOneMove()
+            try:
+                moved_piece = self._board(df, dr)
+                if captured_stun:
+                    moved_piece.addStun(captured_stun)
+                if captured_move:
+                    moved_piece.addMove(captured_move)
+                moved_piece.minusOneMove()
+            except Exception:
+                pass
             self._last_move = (src, dst)
+            # 이번 턴 이동 중인 기물 위치 갱신
+            self._turn_moving_piece_pos = (df, dr)
             return True
         except Exception:
             return False
@@ -233,17 +264,40 @@ class ChessEngineAdapter:
         """
         선택한 승격 기물로 프로모션 이동 실행.
         """
+        if self._turn_action_locked:
+            return False
+        if self._turn_moving_piece_pos is not None and src != self._turn_moving_piece_pos:
+            return False
         sf, sr = src
         df, dr = dst
         pt = STR_TO_PIECE_TYPE.get(piece_type_str)
         if pt is None:
             return False
         try:
+            # 원본 스택
+            try:
+                origin_piece = self._board(sf, sr)
+                old_stun = origin_piece.getStun()
+                old_move = origin_piece.getMove()
+            except Exception:
+                old_stun = 0
+                old_move = 0
+            # 캡처 대상 스택
+            captured_stun = 0
+            captured_move = 0
+            try:
+                mover_color = self._board(sf, sr).getColor()
+                target_piece = self._board(df, dr)
+                if target_piece.getPieceType() != chess_ext.PieceType.NONE and target_piece.getColor() != mover_color:
+                    captured_stun = target_piece.getStun()
+                    captured_move = target_piece.getMove()
+            except Exception:
+                pass
+            # 해당 승격 PGN 선택
             legal_pgns = self._board.calcLegalMovesInOnePiece(sf, sr)
             chosen = None
             for pgn in legal_pgns:
-                to_sq = pgn.getToSquare()
-                to_f, to_r = to_sq
+                to_f, to_r = pgn.getToSquare()
                 if to_f == df and to_r == dr:
                     try:
                         if pgn.getMoveType() == chess_ext.MoveType.PROMOTE and pgn.getPieceType() == pt:
@@ -255,10 +309,18 @@ class ChessEngineAdapter:
                 return False
             self._board.updatePiece(chosen)
             try:
-                self._board(df, dr).minusOneMove()
+                promoted_piece = self._board(df, dr)
+                promoted_piece.setStun(old_stun)
+                promoted_piece.setMove(old_move)
+                if captured_stun:
+                    promoted_piece.addStun(captured_stun)
+                if captured_move:
+                    promoted_piece.addMove(captured_move)
+                promoted_piece.minusOneMove()
             except Exception:
                 pass
             self._last_move = (src, dst)
+            self._turn_moving_piece_pos = (df, dr)
             return True
         except Exception:
             return False
@@ -268,6 +330,9 @@ class ChessEngineAdapter:
         포켓에서 기물 드롭
         piece_type_str: "P", "N", "K" 등
         """
+        # 이번 턴에 이동이 시작되었거나 비-이동 행동을 이미 했으면 불가
+        if self._turn_action_locked or self._turn_moving_piece_pos is not None:
+            return False
         pt = STR_TO_PIECE_TYPE.get(piece_type_str)
         if pt is None:
             return False
@@ -276,6 +341,8 @@ class ChessEngineAdapter:
             # ADD PGN 생성 (colorType, file, rank, pieceType)
             pgn = chess_ext.PGN(ct, file, rank, pt)
             self._board.updatePiece(pgn)
+            # 비-이동 행동은 턴을 잠금
+            self._turn_action_locked = True
             return True
         except Exception:
             return False
@@ -284,11 +351,14 @@ class ChessEngineAdapter:
         """
         해당 위치 기물에 스턴 추가
         """
+        if self._turn_action_locked or self._turn_moving_piece_pos is not None:
+            return False
         try:
             p = self._board(file, rank)
             if p.getPieceType() == chess_ext.PieceType.NONE:
                 return False
             p.addOneStun()
+            self._turn_action_locked = True
             return True
         except Exception:
             return False
@@ -298,6 +368,8 @@ class ChessEngineAdapter:
         해당 위치 기물을 왕위 계승 (로얄로 만들기)
         반환: 성공 여부
         """
+        if self._turn_action_locked or self._turn_moving_piece_pos is not None:
+            return False
         try:
             p = self._board(file, rank)
             if p.getPieceType() == chess_ext.PieceType.NONE:
@@ -306,6 +378,7 @@ class ChessEngineAdapter:
             # SUCCESION PGN 생성 (colorType, file, rank, moveType)
             pgn = chess_ext.PGN(ct, file, rank, chess_ext.MoveType.SUCCESION)
             self._board.updatePiece(pgn)
+            self._turn_action_locked = True
             return True
         except Exception:
             return False
@@ -319,12 +392,19 @@ class ChessEngineAdapter:
                     p.addStun(-1)
                     p.addMove(1)
         self._turn_color = "black" if self._turn_color == "white" else "white"
+        # 턴 리셋
+        self._turn_action_locked = False
+        self._turn_moving_piece_pos = None
 
     def next_drop_kind(self, current: str) -> str:
         """드롭 기물 종류 순환"""
-        kinds = ["P", "N", "B", "R", "Q", "K", "A", "G", "Kr", "W", "D", "L", "F", "C", "Cl", "Tr"]
+        kinds = [k for k in STR_TO_PIECE_TYPE.keys()]
         try:
             idx = kinds.index(current)
             return kinds[(idx + 1) % len(kinds)]
         except ValueError:
             return "P"
+
+    def available_drop_kinds(self) -> List[str]:
+        """현재 엔진에서 지원하는 드롭 기물 심볼 목록 반환 (NONE 제외)"""
+        return [k for k in STR_TO_PIECE_TYPE.keys()]

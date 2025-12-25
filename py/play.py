@@ -230,7 +230,7 @@ def main(engine):
     clock = pygame.time.Clock()
     running = True
     MODE_ORDER = ["move", "drop", "succession", "stun"]
-    DROP_KINDS = ["P", "N", "B", "R", "Q", "K", "A", "G", "Kr", "W", "D", "L", "F", "C", "Cl", "Tr"]
+    DROP_KINDS = engine.available_drop_kinds()
 
     while running:
         clock.tick(30)
@@ -287,6 +287,12 @@ def main(engine):
                             ui.mode = MODE_ORDER[(i + 1) % len(MODE_ORDER)]
                         except ValueError:
                             ui.mode = MODE_ORDER[0]
+                    elif ui.focus == 'drop' or ui.mode == 'drop':
+                        try:
+                            i = DROP_KINDS.index(ui.drop_kind)
+                            ui.drop_kind = DROP_KINDS[(i + 1) % len(DROP_KINDS)]
+                        except ValueError:
+                            ui.drop_kind = DROP_KINDS[0]
                 elif ev.key in (pygame.K_RETURN, pygame.K_SPACE):
                     # Confirm promotion selection
                     if ui.promoting and ui.promotion_choices and ui.promotion_from and ui.promotion_to:
@@ -300,12 +306,6 @@ def main(engine):
                         ui.promotion_to = None
                         ui.selected = None
                         ui.targets = []
-                    elif ui.focus == 'drop' or ui.mode == 'drop':
-                        try:
-                            i = DROP_KINDS.index(ui.drop_kind)
-                            ui.drop_kind = DROP_KINDS[(i + 1) % len(DROP_KINDS)]
-                        except ValueError:
-                            ui.drop_kind = DROP_KINDS[0]
                     else:
                         try:
                             i = MODE_ORDER.index(ui.mode)

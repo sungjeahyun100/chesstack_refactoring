@@ -78,7 +78,7 @@ void piece::setupMoveChunk() {
                     mC.push_back(moveChunk(threatType::TAKE, {0, 0}, {{-1, -1}, {1, -1}}, 1));
                 }
                 isPromotable = true;
-                promote_pool = {pieceType::QUEEN, pieceType::ROOK, pieceType::BISHOP, pieceType::KNIGHT};
+                promote_pool = {pieceType::QUEEN, pieceType::ROOK, pieceType::BISHOP, pieceType::KNIGHT, pieceType::AMAZON};
                 // 프로모션 가능 칸 (8번째 랭크 또는 1번째 랭크)
                 int targetRank = (cT == colorType::WHITE) ? 7 : 0;
                 for(int file = 0; file < BOARDSIZE; file++) {
