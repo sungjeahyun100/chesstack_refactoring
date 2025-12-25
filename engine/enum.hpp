@@ -48,4 +48,12 @@ enum class threatType{
 };
 
 
+enum class moveType{
+    NONE=-1,
+    MOVE,
+    ADD,
+    SUCCESION,
+    PROMOTE
+};
+
 

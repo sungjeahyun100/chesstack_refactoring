@@ -152,7 +152,7 @@ std::vector<PGN> chessboard::calcLegalMovesInOnePiece(int file, int rank)
                         if(next_square.isEmpty()) continue; //칸이 비어있다면
                         if(next_square.getColor() == current_piece.getColor()) break; //칸에 아군이 있다면
                         if(next_square.getColor() != current_piece.getColor()) {
-                            result.push_back(PGN(threatType::CATCH, origin_file, origin_rank, next_square_file, next_square_rank)); // 칸에 적 기물이 있다면
+                            result.push_back(PGN(threatType::CATCH, file, rank, next_square_file, next_square_rank)); // 칸에 적 기물이 있다면
                             break;
                         }
                     }
@@ -168,12 +168,12 @@ std::vector<PGN> chessboard::calcLegalMovesInOnePiece(int file, int rank)
 
                         piece next_square = board[next_square_file][next_square_rank];
                         if(next_square.isEmpty()){
-                            result.push_back(PGN(threatType::TAKEMOVE, origin_file, origin_rank, next_square_file, next_square_rank)); //칸이 비어있다면
+                            result.push_back(PGN(threatType::TAKEMOVE, file, rank, next_square_file, next_square_rank)); //칸이 비어있다면
                             continue;
                         }
                         if(next_square.getColor() == current_piece.getColor()) break; //칸에 아군이 있다면
                         if(next_square.getColor() != current_piece.getColor()) {
-                            result.push_back(PGN(threatType::TAKEMOVE, origin_file, origin_rank, next_square_file, next_square_rank)); // 칸에 적 기물이 있다면
+                            result.push_back(PGN(threatType::TAKEMOVE, file, rank, next_square_file, next_square_rank)); // 칸에 적 기물이 있다면
                             break;
                         }
                     }
@@ -190,7 +190,7 @@ std::vector<PGN> chessboard::calcLegalMovesInOnePiece(int file, int rank)
                         piece next_square = board[next_square_file][next_square_rank];
                         if(next_square.getColor() == current_piece.getColor()) break; //칸에 아군이 있다면
                         if(next_square.isEmpty()){
-                            result.push_back(PGN(threatType::MOVE, origin_file, origin_rank, next_square_file, next_square_rank)); //칸이 비어있다면
+                            result.push_back(PGN(threatType::MOVE, file, rank, next_square_file, next_square_rank)); //칸이 비어있다면
                             continue;
                         }
                         if(next_square.getColor() != current_piece.getColor()) {
@@ -209,14 +209,14 @@ std::vector<PGN> chessboard::calcLegalMovesInOnePiece(int file, int rank)
 
                         piece next_square = board[next_square_file][next_square_rank];
                         if(next_square.getColor() == current_piece.getColor()) {
-                            result.push_back(PGN(threatType::SHIFT, origin_file, origin_rank, next_square_file, next_square_rank));//칸에 아군이 있다면
+                            result.push_back(PGN(threatType::SHIFT, file, rank, next_square_file, next_square_rank));//칸에 아군이 있다면
                             break;
                         }
                         if(next_square.isEmpty()){
                             continue; //칸이 비어있다면
                         }
                         if(next_square.getColor() != current_piece.getColor()) {
-                            result.push_back(PGN(threatType::SHIFT, origin_file, origin_rank, next_square_file, next_square_rank));// 칸에 적 기물이 있다면
+                            result.push_back(PGN(threatType::SHIFT, file, rank, next_square_file, next_square_rank));// 칸에 적 기물이 있다면
                             break;
                         }
                     }
@@ -238,7 +238,7 @@ std::vector<PGN> chessboard::calcLegalMovesInOnePiece(int file, int rank)
                             continue; //칸이 비어있다면
                         }
                         if(next_square.getColor() != current_piece.getColor()) {// 칸에 적 기물이 있다면
-                            result.push_back(PGN(threatType::TAKE, origin_file, origin_rank, next_square_file, next_square_rank));
+                            result.push_back(PGN(threatType::TAKE, file, rank, next_square_file, next_square_rank));
                             break;
                         }
                     }
@@ -264,12 +264,12 @@ std::vector<PGN> chessboard::calcLegalMovesInOnePiece(int file, int rank)
 
                             piece final_destination = board[final_destination_file][final_destination_rank];
                             if(final_destination.isEmpty()){ //뛰어넘을 칸이 비어있다면
-                                result.push_back(PGN(threatType::TAKEJUMP, origin_file, origin_rank, final_destination_file, final_destination_rank)); 
+                                result.push_back(PGN(threatType::TAKEJUMP, file, rank, final_destination_file, final_destination_rank)); 
                                 break;
                             }else if(final_destination.getColor() == current_piece.getColor()){ //뛰어넘을 칸에 아군이 있다면
                                 break;
                             }else{ //뛰어넘을 칸에 적이 있다면
-                                result.push_back(PGN(threatType::TAKEJUMP, origin_file, origin_rank, final_destination_file, final_destination_rank)); 
+                                result.push_back(PGN(threatType::TAKEJUMP, file, rank, final_destination_file, final_destination_rank)); 
                                 break;
                             }
                         }
@@ -281,15 +281,39 @@ std::vector<PGN> chessboard::calcLegalMovesInOnePiece(int file, int rank)
         }
     }
 
+    if(current_piece.getIsPromotable()){ 
+        //일단 당장은 잘 작동할 거다. 애초에 프로모션 가능한 기물들은 약한 기물들 뿐이라 PGN이 그렇게 많지도 않을 거라서 성능 악화는 없을 것이다. 근데 그런 게 생겨버리면 그건 이제 그때 가서 생각하자.
+        std::vector<PGN> promote;
+        auto promotable_square = current_piece.getPromotableSquare();
+        auto promotable_pieces = current_piece.getPromotePool();
+        for(int i=0; i<result.size(); i++){
+            for(auto& p_sq : promotable_square){
+                if(result[i].getToSquare() == p_sq){
+                    for(auto& promotable_piece : promotable_pieces){
+                        promote.push_back(PGN(result[i].getThreatType(), file, rank, result[i].getToSquare().first, result[i].getToSquare().second, promotable_piece));
+                    }
+                    result[i] = PGN();
+                }
+            }
+        }
+
+        result.erase(std::remove(result.begin(), result.end(), PGN()), result.end());
+
+        result.insert(result.end(), promote.begin(), promote.end());
+    }
+
     return result;
 }
 
 void chessboard::updatePiece(PGN pgn)
 {
+    auto mT = pgn.getMoveType();
     bool isLegal = false;
     auto fromSquare = pgn.getFromSquare();
     auto toSquare = pgn.getToSquare();
     threatType tT = pgn.getThreatType();
+    auto pT = pgn.getPieceType();
+    auto cT = pgn.getColorType();
 
     std::vector<PGN> legal_move = calcLegalMovesInOnePiece(fromSquare.first, fromSquare.second);
 
@@ -309,22 +333,32 @@ void chessboard::updatePiece(PGN pgn)
         return;
     }
 
-    switch (tT)
-    {
-        case threatType::MOVE:
-        case threatType::TAKEMOVE:
-        case threatType::TAKEJUMP:
-        case threatType::TAKE:
-            movePiece(fromSquare.first, fromSquare.second, toSquare.first, toSquare.second);
-            break;
-        case threatType::CATCH:
-            removePiece(toSquare.first, toSquare.second);
-            break;
-        case threatType::SHIFT:
-            shiftPiece(fromSquare.first, fromSquare.second, toSquare.first, toSquare.second);
-            break;
-        default:
-            break;
+    if(mT == moveType::MOVE){
+        switch (tT)
+        {
+            case threatType::MOVE:
+            case threatType::TAKEMOVE:
+            case threatType::TAKEJUMP:
+            case threatType::TAKE:
+                movePiece(fromSquare.first, fromSquare.second, toSquare.first, toSquare.second);
+                break;
+            case threatType::CATCH:
+                removePiece(toSquare.first, toSquare.second);
+                break;
+            case threatType::SHIFT:
+                shiftPiece(fromSquare.first, fromSquare.second, toSquare.first, toSquare.second);
+                break;
+            default:
+                break;
+        }
+    }else if(mT == moveType::ADD){
+        placePiece(cT, pT, fromSquare.first, fromSquare.second);
+    }else if(mT == moveType::SUCCESION){
+        succesionPiece(fromSquare.first, fromSquare.second);
+    }else if(mT == moveType::PROMOTE){
+        cT = board[fromSquare.first][fromSquare.second].getColor();
+        movePiece(fromSquare.first, fromSquare.second, toSquare.first, toSquare.second);
+        promotePiece(cT, toSquare.first, toSquare.second, pT);
     }
 }
 

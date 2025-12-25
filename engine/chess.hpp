@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <array>
+#include <algorithm>
 
 constexpr int BOARDSIZE = 8;
 constexpr int NUMBER_OF_PIECEKIND = 16;
@@ -142,24 +143,62 @@ struct piece{
 
 struct PGN{
     private:
+        moveType mT;
+
+        //moveType::MOVE
         int fromFile; //어느 칸에서
         int fromRank;
-
         threatType tT; //어떤 종류의 영향을
-
         int toFile; //어떤 칸에 행사했는가 를 뜻함.
         int toRank;
+
+        colorType cT;
+        pieceType pT;
     public:
 
+        PGN(){
+            mT = moveType::NONE;
+            fromFile = 0;
+            fromRank = 0;
+            tT = threatType::NONE;
+            toFile = 0;
+            toRank = 0;
+            cT  = colorType::NONE;
+            pT = pieceType::NONE;
+        }
+
         PGN(threatType tt, int fF, int fR, int tF, int tR) : 
-        fromFile(fF), fromRank(fR), tT(tt), toFile(tF), toRank(tR) {}
+        fromFile(fF), fromRank(fR), tT(tt), toFile(tF), toRank(tR) { //이동 표현
+            mT = moveType::MOVE;
+            pT = pieceType::NONE;
+        }
+
+        PGN(threatType tt, int fF, int fR, int tF, int tR, pieceType pt) : 
+        fromFile(fF), fromRank(fR), tT(tt), toFile(tF), toRank(tR), pT(pt) { //승격 표현
+            mT = moveType::PROMOTE;//불가능한 조합이 생기긴 하는데, 뭐 괜찮겠지 
+        }
+
+        PGN(int fF, int fR, moveType mt) : mT(mt), fromFile(fF), fromRank(fR) { //계승 표현
+            tT = threatType::NONE;
+            pT = pieceType::NONE;
+            toFile = 0;
+            toRank = 0;
+        }
+
+        PGN(int fF, int fR, colorType ct, pieceType pt) : fromFile(fF), fromRank(fR), cT(ct), pT(pt) { //착수 표현
+            tT = threatType::NONE;
+            toFile = 0;
+            toRank = 0;
+        }
 
         bool operator==(const PGN& compare) const {
+            if(mT != compare.mT) return false;
             if(fromFile != compare.fromFile) return false;
             if(fromRank != compare.fromRank) return false;
             if(tT != compare.tT) return false;
             if(toFile != compare.toFile) return false;
             if(toRank != compare.toRank) return false;
+            if(pT != compare.pT) return false;
 
             return true;
         }
@@ -173,6 +212,15 @@ struct PGN{
         }
         threatType getThreatType() const {
             return tT;
+        }
+        moveType getMoveType() const {
+            return mT;
+        }
+        pieceType getPieceType() const {
+            return pT;
+        }
+        colorType getColorType() const {
+            return cT;
         }
 };
 
@@ -228,6 +276,8 @@ class chessboard{
         void promotePiece(colorType cT, int file, int rank, pieceType promote);
 
         std::vector<PGN> calcLegalMovesInOnePiece(int file, int rank);
+        std::vector<PGN> calcLegalPlacePiece();
+        std::vector<PGN> calcLegalSuccesion();
 
         //행마법에 따라 보드를 조작하는 함수
         void updatePiece(PGN pgn); //기물의 threatType에 따라 보드 상태를 업데이트
