@@ -357,7 +357,23 @@ void chessboard::updatePiece(PGN pgn)
         succesionPiece(fromSquare.first, fromSquare.second);
     }else if(mT == moveType::PROMOTE){
         cT = board[fromSquare.first][fromSquare.second].getColor();
-        movePiece(fromSquare.first, fromSquare.second, toSquare.first, toSquare.second);
+        switch (tT)
+        {
+            case threatType::MOVE:
+            case threatType::TAKEMOVE:
+            case threatType::TAKEJUMP:
+            case threatType::TAKE:
+                movePiece(fromSquare.first, fromSquare.second, toSquare.first, toSquare.second);
+                break;
+            case threatType::CATCH:
+                removePiece(toSquare.first, toSquare.second);
+                break;
+            case threatType::SHIFT:
+                shiftPiece(fromSquare.first, fromSquare.second, toSquare.first, toSquare.second);
+                break;
+            default:
+                break;
+        }
         promotePiece(cT, toSquare.first, toSquare.second, pT);
     }
 }
