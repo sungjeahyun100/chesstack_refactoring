@@ -174,7 +174,7 @@ def main(engine):
     pygame.init()
     ui = UIState()
     screen = pygame.display.set_mode((BOARD_PX + INFO_W + DEBUG_W, BOARD_PX))
-    pygame.display.set_caption("UI only (engine-driven)")
+    pygame.display.set_caption("chesstack (testing)")
     font = pygame.font.SysFont("arial", SQUARE // 2)
     info_font = pygame.font.SysFont("arial", 18)
     clock = pygame.time.Clock()

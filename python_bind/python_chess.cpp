@@ -94,6 +94,7 @@ PYBIND11_MODULE(chess_ext, m) {
 		.def("isInBounds", &chessboard::isInBounds)
 		.def("calcLegalMovesInOnePiece", &chessboard::calcLegalMovesInOnePiece)
 		.def("updatePiece", &chessboard::updatePiece)
+		.def("pieceStackControllByColor", &chessboard::pieceStackControllByColor)
 		.def("getWhitePocket", [](const chessboard &b) { return b.getWhitePocket(); })
 		.def("getBlackPocket", [](const chessboard &b) { return b.getBlackPocket(); });
 

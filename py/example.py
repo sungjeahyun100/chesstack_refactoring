@@ -51,8 +51,8 @@ def demo():
 	print(f"e1 piece type: {p_e1.getPieceType()} color: {p_e1.getColor()} stun: {p_e1.getStun()} move: {p_e1.getMove()}")
 
 	# modify stacks from Python
-	p_e1.setStun(3)
-	p_e1.addOneMove()
+	p_e1.setStun(0)
+	p_e1.setMove(10)
 	print('\nAfter modifying e1 stacks:')
 	board.displayPieceAt(4, 0)
 
@@ -61,9 +61,15 @@ def demo():
 	print('\nAfter moving king e1->e2:')
 	board.displayBoard()
 
-	# calc legal moves for a pawn at c2 (index 2,1)
-	moves = board.calcLegalMovesInOnePiece(2, 1)
-	print('\nLegal moves for piece at c2:')
+	# calc legal moves for a pawn at e2 (index 4,1)
+	moves = board.calcLegalMovesInOnePiece(4, 1)
+	print('\nLegal moves for piece at e2:')
+	for m in moves:
+		print(m)
+
+	board.updatePiece(moves[0])
+	board.displayBoard()
+	print('\nLegal moves for piece at e2:')
 	for m in moves:
 		print(m)
 

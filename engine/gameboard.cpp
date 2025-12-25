@@ -327,3 +327,15 @@ void chessboard::updatePiece(PGN pgn)
             break;
     }
 }
+
+void chessboard::pieceStackControllByColor(colorType cT, int d_stun, int d_move)
+{
+    for(int i=0; i<8; i++){
+        for(int j=0; j<8; j++){
+            if(board[i][j].getColor() == cT){
+                board[i][j].addStun(d_stun);
+                board[i][j].addMove(d_move);
+            }
+        }
+    }
+}

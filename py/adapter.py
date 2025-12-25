@@ -54,6 +54,7 @@ COLOR_TO_STR = {
     chess_ext.ColorType.NONE: "none",
 }
 
+STR_TO_COLOR_TYPE = {v: k for k, v in COLOR_TO_STR.items() if v}
 
 class ChessEngineAdapter:
     """chess_ext.ChessBoard를 pygame UI에서 사용하기 위한 어댑터"""
@@ -187,6 +188,12 @@ class ChessEngineAdapter:
 
     def end_turn(self):
         """턴 종료, 색상 교체"""
+        for f in range(8):
+            for r in range(8):
+                p = self._board(f, r)
+                if p.getStun() != 0 and  p.getColor() == STR_TO_COLOR_TYPE.get(self._turn_color):
+                    p.addStun(-1)
+                    p.addMove(1)
         self._turn_color = "black" if self._turn_color == "white" else "white"
 
     def next_drop_kind(self, current: str) -> str:

@@ -41,8 +41,8 @@ struct piece{
     private:
         colorType cT;
         pieceType pT;
-        unsigned int stun_stack;
-        unsigned int move_stack;
+        int stun_stack;
+        int move_stack;
 
         // 피스 설계때부터 정해지는 값들
         std::vector<moveChunk> mC; 
@@ -69,11 +69,11 @@ struct piece{
             move_stack = 0;
             setupMoveChunk();
         }
-        piece(colorType c, pieceType p, unsigned int stun) : cT(c), pT(p), stun_stack(stun) {
+        piece(colorType c, pieceType p, int stun) : cT(c), pT(p), stun_stack(stun) {
             move_stack = 0;
             setupMoveChunk();
         }
-        piece(colorType c, pieceType p, unsigned int stun, unsigned int move) : cT(c), pT(p), stun_stack(stun), move_stack(move){
+        piece(colorType c, pieceType p, int stun, int move) : cT(c), pT(p), stun_stack(stun), move_stack(move){
             setupMoveChunk();
         }
 
@@ -91,19 +91,37 @@ struct piece{
         std::vector<std::pair<int, int>> getPromotableSquare() { return promotable_square; }
 
         //setter
-        void setStun(unsigned int s){ stun_stack = s; }
-        void setMove(unsigned int m){ move_stack = m; }
+        void setStun(int s){
+            if(s < 0) return;
+            stun_stack = s; 
+        }
+        void setMove(int m){
+            if(m < 0) return;
+            move_stack = m; 
+        }
         void setColor(colorType ct){ cT = ct; }
         void setRoyal(bool royalty){ isRoyal = royalty; }
 
         //스택 조작 핼퍼 함수
-        void addStun(int ds){ stun_stack += ds; }
+        void addStun(int ds){ 
+            if(stun_stack + ds < 0) return;
+            stun_stack += ds; 
+        }
         void addOneStun() { stun_stack += 1; }
-        void minusOneStun() { stun_stack -= 1; }
+        void minusOneStun() { 
+            if(stun_stack-1 < 0) return;
+            stun_stack -= 1; 
+        }
 
-        void addMove(int dm){ move_stack += dm; }
+        void addMove(int dm){ 
+            if(move_stack+dm < 0) return;
+            move_stack += dm; 
+        }
         void addOneMove() { move_stack += 1; }
-        void minusOneMove() { move_stack -= 1; }
+        void minusOneMove() { 
+            if(move_stack-1 < 0) return;
+            move_stack -= 1; 
+        }
 
         //기타 편의성 함수
         bool isEmpty(){
@@ -219,6 +237,9 @@ class chessboard{
         void displayPieceAt(int file, int rank) const; //특정 칸의 기물 정보 출력
         void displayPockets() const; //주머니(포켓) 정보 출력
         void displayPieceInfo(int file, int rank) const; //특정 칸의 기물 상세 정보 출력
+
+        //스택이 색갈에 따라 일괄적용되는 규칙들을 구현할 함수.
+        void pieceStackControllByColor(colorType cT, int d_stun, int d_move);
 
 		//포켓 접근자
 		const std::array<int, NUMBER_OF_PIECEKIND>& getWhitePocket() const { return whitePocket; }
