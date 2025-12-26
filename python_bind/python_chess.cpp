@@ -117,7 +117,11 @@ PYBIND11_MODULE(chess_ext, m) {
 		.def("updatePiece", &chessboard::updatePiece)
 		.def("pieceStackControllByColor", &chessboard::pieceStackControllByColor)
 		.def("getWhitePocket", [](const chessboard &b) { return b.getWhitePocket(); })
-		.def("getBlackPocket", [](const chessboard &b) { return b.getBlackPocket(); });
+		.def("getBlackPocket", [](const chessboard &b) { return b.getBlackPocket(); })
+		.def("controllPocketValue", &chessboard::controllPocketValue)
+		// Snapshot/restore for search without mutating live board
+		.def("getBoardLog", &chessboard::getBoardLog)
+		.def("setBoardFromLog", &chessboard::setBoardFromLog);
 
 	// helper: expose pair<int,int> conversion automatically via stl
 }

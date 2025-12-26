@@ -14,6 +14,7 @@ option(BUILD_PYBINDING "Build pybind11 Python extension" ON)
 # Engine library (shared/static controlled by BUILD_SHARED_LIBS)
 add_library(engine_lib
     ${ENGINE_DIR}/gameboard.cpp
+    ${ENGINE_DIR}/piece_spec.cpp
     ${ENGINE_DIR}/piece_setting.cpp
     ${ENGINE_DIR}/debug.cpp
 )

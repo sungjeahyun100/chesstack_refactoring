@@ -2,8 +2,10 @@
 from __future__ import annotations
 import pygame
 from typing import Dict, List, Tuple, Optional
+import time
 
 from adapter import ChessEngineAdapter
+from bot import WeightedBot, NegamaxBot
 engine = ChessEngineAdapter()
 
 # 필요한 어댑터 인터페이스 예시:
@@ -51,6 +53,12 @@ class UIState:
         self.promote_index: int = 0
         self.promotion_from: Optional[Tuple[int,int]] = None
         self.promotion_to: Optional[Tuple[int,int]] = None
+        # Bot settings
+        self.bot_enabled: bool = False  # 봇 활성화 여부
+        self.bot_color: str = "black"   # 봇이 조종할 색 ("white" 또는 "black")
+        self.bot_type: str = "weighted" # 봇 타입 ("weighted" 또는 "negamax")
+        self.bot_last_move_time: float = 0
+        self.bot_move_delay: float = 0.8  # 봇이 행동하기까지 대기 시간 (초)
 
 def board_from_mouse(pos: Tuple[int,int]) -> Optional[Tuple[int,int]]:
     mx, my = pos
@@ -170,11 +178,22 @@ def draw(engine, ui: UIState, screen, font, info_font):
         "  M move | D drop | S stun (direct)",
         "  Tab cycle drop (forward)",
         "  END TURN button",
+        "  B toggle bot (black) | Shift+B bot (white)",
+        "  N toggle bot type (weighted/negamax)",
         "  R reset | Q/Esc quit",
     ]
     for ln in controls:
         surf = info_font.render(ln, True, PANEL_TEXT)
         screen.blit(surf, (BOARD_PX + 10, y)); y += 20
+    
+    # Bot status
+    if ui.bot_enabled:
+        bot_text = f"Bot: {ui.bot_color} ({ui.bot_type})"
+        surf = info_font.render(bot_text, True, (100, 200, 100))
+    else:
+        bot_text = "Bot: disabled"
+        surf = info_font.render(bot_text, True, (100, 100, 100))
+    screen.blit(surf, (BOARD_PX + 10, y))
 
     # buttons
     pygame.draw.rect(screen, (50,100,50), end_btn)
@@ -231,6 +250,17 @@ def main(engine):
     running = True
     MODE_ORDER = ["move", "drop", "succession", "stun"]
     DROP_KINDS = engine.available_drop_kinds()
+    
+    # 봇 초기화 함수
+    def create_bot(color: str, bot_type: str):
+        if bot_type == "negamax":
+            return NegamaxBot(engine, color, depth=4)
+        else:
+            return WeightedBot(engine, color)
+    
+    # 봇 초기화
+    bot = create_bot(ui.bot_color, ui.bot_type)
+    ui.bot_last_move_time = time.time()
 
     while running:
         clock.tick(30)
@@ -243,6 +273,23 @@ def main(engine):
                 elif ev.key == pygame.K_r:
                     engine.reset()
                     ui = UIState()
+                    bot = create_bot(ui.bot_color, ui.bot_type)
+                    ui.bot_last_move_time = time.time()
+                elif ev.key == pygame.K_n:
+                    # N: toggle bot type
+                    ui.bot_type = "negamax" if ui.bot_type == "weighted" else "weighted"
+                    bot = create_bot(ui.bot_color, ui.bot_type)
+                    ui.status = f"Bot type: {ui.bot_type}"
+                elif ev.key == pygame.K_b:
+                    # B: toggle bot for black, Shift+B: toggle bot for white
+                    if ev.mod & pygame.KMOD_SHIFT:
+                        ui.bot_color = "white"
+                    else:
+                        ui.bot_color = "black"
+                    ui.bot_enabled = not ui.bot_enabled
+                    bot = create_bot(ui.bot_color, ui.bot_type)
+                    ui.status = f"Bot {'enabled' if ui.bot_enabled else 'disabled'} for {ui.bot_color}"
+                    ui.bot_last_move_time = time.time()
                 elif ev.key == pygame.K_m:
                     ui.mode = "move"
                 elif ev.key == pygame.K_d:
@@ -401,6 +448,24 @@ def main(engine):
                     elif ui.mode == "stun":
                         ok = engine.stun(x,y)
                         ui.status = "Stun" if ok else "Stun failed"
+        
+        # 봇 턴 처리
+        if ui.bot_enabled and engine.turn == ui.bot_color:
+            current_time = time.time()
+            if current_time - ui.bot_last_move_time >= ui.bot_move_delay:
+                # 봇 행동 시도
+                if bot.get_best_move():
+                    if isinstance(bot, NegamaxBot):
+                        eval_score = bot.evaluate_board()
+                        ui.status = f"Bot ({ui.bot_color}/{ui.bot_type}) moved | eval: {eval_score:.1f}"
+                    else:
+                        ui.status = f"Bot ({ui.bot_color}/{ui.bot_type}) moved"
+                else:
+                    ui.status = f"Bot ({ui.bot_color}) has no moves"
+                    engine.end_turn()
+                ui.bot_last_move_time = current_time
+                ui.selected = None
+                ui.targets = []
 
         screen.fill((0,0,0))
         dbg_btn, end_btn = draw(engine, ui, screen, font, info_font)

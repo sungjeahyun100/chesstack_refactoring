@@ -1,0 +1,83 @@
+[ 14%] Building CXX object CMakeFiles/engine_lib.dir/engine/piece_spec.cpp.o
+[ 42%] Building CXX object CMakeFiles/engine_lib.dir/engine/gameboard.cpp.o
+[ 42%] Building CXX object CMakeFiles/engine_lib.dir/engine/piece_setting.cpp.o
+[ 57%] Building CXX object CMakeFiles/engine_lib.dir/engine/debug.cpp.o
+In file included from /home/sjh100/바탕화면/project_bc_refectoring/engine/gameboard.cpp:1:
+/home/sjh100/바탕화면/project_bc_refectoring/engine/chess.hpp:13:23: error: ‘moveChunk’ was not declared in this scope
+   13 |     const std::vector<moveChunk>& moves(pieceType pt, colorType ct);
+      |                       ^~~~~~~~~
+In file included from /home/sjh100/바탕화면/project_bc_refectoring/engine/piece_setting.cpp:1:
+/home/sjh100/바탕화면/project_bc_refectoring/engine/chess.hpp:13:23: error: ‘moveChunk’ was not declared in this scope
+   13 |     const std::vector<moveChunk>& moves(pieceType pt, colorType ct);
+      |                       ^~~~~~~~~
+/home/sjh100/바탕화면/project_bc_refectoring/engine/chess.hpp:13:32: error: template argument 1 is invalid
+   13 |     const std::vector<moveChunk>& moves(pieceType pt, colorType ct);
+      |                                ^
+/home/sjh100/바탕화면/project_bc_refectoring/engine/chess.hpp:13:32: error: template argument 1 is invalid
+   13 |     const std::vector<moveChunk>& moves(pieceType pt, colorType ct);
+      |                                ^
+/home/sjh100/바탕화면/project_bc_refectoring/engine/chess.hpp:13:32: error: template argument 2 is invalid
+/home/sjh100/바탕화면/project_bc_refectoring/engine/chess.hpp:13:32: error: template argument 2 is invalid
+In file included from /home/sjh100/바탕화면/project_bc_refectoring/engine/piece_spec.hpp:6,
+                 from /home/sjh100/바탕화면/project_bc_refectoring/engine/piece_spec.cpp:1:
+/home/sjh100/바탕화면/project_bc_refectoring/engine/chess.hpp:13:23: error: ‘moveChunk’ was not declared in this scope
+   13 |     const std::vector<moveChunk>& moves(pieceType pt, colorType ct);
+      |                       ^~~~~~~~~
+/home/sjh100/바탕화면/project_bc_refectoring/engine/chess.hpp:13:32: error: template argument 1 is invalid
+   13 |     const std::vector<moveChunk>& moves(pieceType pt, colorType ct);
+      |                                ^
+/home/sjh100/바탕화면/project_bc_refectoring/engine/chess.hpp:13:32: error: template argument 2 is invalid
+/home/sjh100/바탕화면/project_bc_refectoring/engine/chess.hpp: In member function ‘std::vector<moveChunk> piece::getMoveChunk() const’:
+/home/sjh100/바탕화면/project_bc_refectoring/engine/chess.hpp:98:74: error: could not convert ‘specs::moves(((pieceType)((const piece*)this)->piece::pT), ((colorType)((const piece*)this)->piece::cT))’ from ‘const int’ to ‘std::vector<moveChunk>’
+   98 |         std::vector<moveChunk> getMoveChunk() const { return specs::moves(pT, cT); }
+      |                                                              ~~~~~~~~~~~~^~~~~~~~
+      |                                                                          |
+      |                                                                          const int
+/home/sjh100/바탕화면/project_bc_refectoring/engine/chess.hpp: In member function ‘std::vector<moveChunk> piece::getMoveChunk() const’:
+/home/sjh100/바탕화면/project_bc_refectoring/engine/chess.hpp:98:74: error: could not convert ‘specs::moves(((pieceType)((const piece*)this)->piece::pT), ((colorType)((const piece*)this)->piece::cT))’ from ‘const int’ to ‘std::vector<moveChunk>’
+   98 |         std::vector<moveChunk> getMoveChunk() const { return specs::moves(pT, cT); }
+      |                                                              ~~~~~~~~~~~~^~~~~~~~
+      |                                                                          |
+      |                                                                          const int
+In file included from /home/sjh100/바탕화면/project_bc_refectoring/engine/debug.cpp:1:
+/home/sjh100/바탕화면/project_bc_refectoring/engine/chess.hpp:13:23: error: ‘moveChunk’ was not declared in this scope
+   13 |     const std::vector<moveChunk>& moves(pieceType pt, colorType ct);
+      |                       ^~~~~~~~~
+/home/sjh100/바탕화면/project_bc_refectoring/engine/chess.hpp:13:32: error: template argument 1 is invalid
+   13 |     const std::vector<moveChunk>& moves(pieceType pt, colorType ct);
+      |                                ^
+/home/sjh100/바탕화면/project_bc_refectoring/engine/chess.hpp:13:32: error: template argument 2 is invalid
+/home/sjh100/바탕화면/project_bc_refectoring/engine/chess.hpp: In member function ‘std::vector<moveChunk> piece::getMoveChunk() const’:
+/home/sjh100/바탕화면/project_bc_refectoring/engine/chess.hpp:98:74: error: could not convert ‘specs::moves(((pieceType)((const piece*)this)->piece::pT), ((colorType)((const piece*)this)->piece::cT))’ from ‘const int’ to ‘std::vector<moveChunk>’
+   98 |         std::vector<moveChunk> getMoveChunk() const { return specs::moves(pT, cT); }
+      |                                                              ~~~~~~~~~~~~^~~~~~~~
+      |                                                                          |
+      |                                                                          const int
+/home/sjh100/바탕화면/project_bc_refectoring/engine/gameboard.cpp: In member function ‘std::vector<PGN> chessboard::calcLegalMovesInOnePiece(int, int)’:
+/home/sjh100/바탕화면/project_bc_refectoring/engine/gameboard.cpp:290:23: warning: comparison of integer expressions of different signedness: ‘int’ and ‘std::vector<PGN>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+  290 |         for(int i=0; i<result.size(); i++){
+      |                      ~^~~~~~~~~~~~~~
+/home/sjh100/바탕화면/project_bc_refectoring/engine/piece_spec.hpp: At global scope:
+/home/sjh100/바탕화면/project_bc_refectoring/engine/piece_spec.hpp:25:38: error: ambiguating new declaration of ‘const std::vector<moveChunk>& specs::moves(pieceType, colorType)’
+   25 | inline const std::vector<moveChunk>& moves(pieceType pt, colorType ct) {
+      |                                      ^~~~~
+/home/sjh100/바탕화면/project_bc_refectoring/engine/chess.hpp:13:35: note: old declaration ‘const int& specs::moves(pieceType, colorType)’
+   13 |     const std::vector<moveChunk>& moves(pieceType pt, colorType ct);
+      |                                   ^~~~~
+/home/sjh100/바탕화면/project_bc_refectoring/engine/piece_setting.cpp: In member function ‘void piece::setupStunStackWithPosition(int, int)’:
+/home/sjh100/바탕화면/project_bc_refectoring/engine/piece_setting.cpp:193:44: warning: unused parameter ‘file’ [-Wunused-parameter]
+  193 | void piece::setupStunStackWithPosition(int file, int rank){
+      |                                        ~~~~^~~~
+/home/sjh100/바탕화면/project_bc_refectoring/engine/chess.hpp: In member function ‘std::vector<moveChunk> piece::getMoveChunk() const’:
+/home/sjh100/바탕화면/project_bc_refectoring/engine/chess.hpp:98:74: error: could not convert ‘specs::moves(((pieceType)((const piece*)this)->piece::pT), ((colorType)((const piece*)this)->piece::cT))’ from ‘const int’ to ‘std::vector<moveChunk>’
+   98 |         std::vector<moveChunk> getMoveChunk() const { return specs::moves(pT, cT); }
+      |                                                              ~~~~~~~~~~~~^~~~~~~~
+      |                                                                          |
+      |                                                                          const int
+gmake[2]: *** [CMakeFiles/engine_lib.dir/build.make:90: CMakeFiles/engine_lib.dir/engine/piece_spec.cpp.o] 오류 1
+gmake[2]: *** 끝나지 않은 작업을 기다리고 있습니다....
+gmake[2]: *** [CMakeFiles/engine_lib.dir/build.make:104: CMakeFiles/engine_lib.dir/engine/piece_setting.cpp.o] 오류 1
+gmake[2]: *** [CMakeFiles/engine_lib.dir/build.make:76: CMakeFiles/engine_lib.dir/engine/gameboard.cpp.o] 오류 1
+gmake[2]: *** [CMakeFiles/engine_lib.dir/build.make:118: CMakeFiles/engine_lib.dir/engine/debug.cpp.o] 오류 1
+gmake[1]: *** [CMakeFiles/Makefile2:85: CMakeFiles/engine_lib.dir/all] 오류 2
+gmake: *** [Makefile:91: all] 오류 2

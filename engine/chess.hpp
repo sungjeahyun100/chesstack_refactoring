@@ -8,6 +8,8 @@
 constexpr int BOARDSIZE = 8;
 constexpr int NUMBER_OF_PIECEKIND = 16;
 
+// Forward declarations for spec registry (placed after moveChunk definition)
+
 struct moveChunk{ //piece class의 부속 구조체로써만 동작해야 한다.
     private:
         threatType tT;
@@ -37,6 +39,14 @@ struct moveChunk{ //piece class의 부속 구조체로써만 동작해야 한다
         int getMaxDistanse(){ return maxDistanse; }
 };
 
+// Now that moveChunk is declared, declare spec registry accessors.
+namespace specs {
+    const std::vector<moveChunk>& moves(pieceType pt, colorType ct);
+    bool isPromotable(pieceType pt);
+    const std::vector<pieceType>& promotePool(pieceType pt);
+    const std::vector<std::pair<int,int>>& promotableSquares(pieceType pt, colorType ct);
+}
+
 
 struct piece{
     private:
@@ -45,12 +55,8 @@ struct piece{
         int stun_stack;
         int move_stack;
 
-        // 피스 설계때부터 정해지는 값들
-        std::vector<moveChunk> mC; 
+        // 인스턴스가 가지는 동적 상태
         bool isRoyal;
-        bool isPromotable;
-        std::vector<pieceType> promote_pool; // 프로모션할 때, 뭐로 변하는 지 그 풀을 정하는 변수다. 예시론 폰의 경우 퀸, 나이트, 비숍, 룩이 저장된다.
-        std::vector<std::pair<int, int>> promotable_square; //예를 들어서, 폰의 경우 여기엔 1랭크(기물 색깔에 따라 다르겠다만)칸들의 좌표를 저장하면 된다. 그 칸에 도달하면 프로모션 하는 느낌으로.
 
         void setupMoveChunk(); //pieceType에 따라 그에 맞는 설정값을 부여
         void setupStunStack();
@@ -60,11 +66,7 @@ struct piece{
             pT = pieceType::NONE;
             stun_stack = 0;
             move_stack = 0;
-            mC.clear();
             isRoyal = false;
-            isPromotable = false;
-            promote_pool.clear();
-            promotable_square.clear();
         }
         piece(colorType c, pieceType p) : cT(c), pT(p) {
             move_stack = 0;
@@ -87,11 +89,11 @@ struct piece{
         pieceType getPieceType() const { return pT; }
         int getStun() const { return stun_stack; }
         int getMove() const { return move_stack; }
-        std::vector<moveChunk> getMoveChunk() const { return mC; }
+        std::vector<moveChunk> getMoveChunk() const { return specs::moves(pT, cT); }
         bool getIsRoyal() const { return isRoyal; }
-        bool getIsPromotable() const { return isPromotable; }
-        std::vector<pieceType> getPromotePool() const { return promote_pool; }
-        std::vector<std::pair<int, int>> getPromotableSquare() const { return promotable_square; }
+        bool getIsPromotable() const { return specs::isPromotable(pT); }
+        std::vector<pieceType> getPromotePool() const { return specs::promotePool(pT); }
+        std::vector<std::pair<int, int>> getPromotableSquare() const { return specs::promotableSquares(pT, cT); }
 
         //setter
         void setStun(int s){
@@ -135,11 +137,7 @@ struct piece{
         void clear(){
             cT = colorType::NONE;
             pT = pieceType::NONE;
-            mC.clear();
             isRoyal = false;
-            isPromotable = false;
-            promote_pool.clear();
-            promotable_square.clear();
         }
 };
 
@@ -206,6 +204,12 @@ struct PGN{
         colorType getColorType() const {return cT;}
 };
 
+// Lightweight full-board snapshot using now-slim piece
+struct boardLog{
+    piece board[BOARDSIZE][BOARDSIZE];
+    std::array<int, NUMBER_OF_PIECEKIND> whitePocket;
+    std::array<int, NUMBER_OF_PIECEKIND> blackPocket;
+};
 
 class chessboard{
     private:
@@ -276,4 +280,37 @@ class chessboard{
 		//포켓 접근자
 		const std::array<int, NUMBER_OF_PIECEKIND>& getWhitePocket() const { return whitePocket; }
 		const std::array<int, NUMBER_OF_PIECEKIND>& getBlackPocket() const { return blackPocket; }
+
+        void controllPocketValue(colorType cT, pieceType pT, int amount) {
+            if(cT == colorType::WHITE){
+                int idx = static_cast<int>(pT);
+                whitePocket[idx] = amount;
+            }else{
+                int idx = static_cast<int>(pT);
+                blackPocket[idx] = amount;
+            }
+        }
+
+        // Snapshot and restore helpers
+        boardLog getBoardLog() const {
+            boardLog log;
+            for(int f=0; f<BOARDSIZE; ++f){
+                for(int r=0; r<BOARDSIZE; ++r){
+                    log.board[f][r] = board[f][r];
+                }
+            }
+            log.whitePocket = whitePocket;
+            log.blackPocket = blackPocket;
+            return log;
+        }
+
+        void setBoardFromLog(const boardLog& log){
+            for(int f=0; f<BOARDSIZE; ++f){
+                for(int r=0; r<BOARDSIZE; ++r){
+                    board[f][r] = log.board[f][r];
+                }
+            }
+            whitePocket = log.whitePocket;
+            blackPocket = log.blackPocket;
+        }
 };

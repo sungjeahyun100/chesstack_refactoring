@@ -120,6 +120,24 @@ class ChessEngineAdapter:
         self._turn_color = "white"
         self._last_move = None
 
+    def snapshot(self):
+        """엔진 상태 스냅샷 (보드 + 턴 메타)"""
+        return {
+            "board_log": self._board.getBoardLog(),
+            "turn_color": self._turn_color,
+            "turn_action_locked": self._turn_action_locked,
+            "turn_moving_piece_pos": self._turn_moving_piece_pos,
+            "last_move": self._last_move,
+        }
+
+    def restore(self, snap) -> None:
+        """스냅샷으로 엔진 상태 복원"""
+        self._board.setBoardFromLog(snap["board_log"])
+        self._turn_color = snap["turn_color"]
+        self._turn_action_locked = snap["turn_action_locked"]
+        self._turn_moving_piece_pos = snap["turn_moving_piece_pos"]
+        self._last_move = snap["last_move"]
+
     def owned_piece_at(self, file: int, rank: int) -> bool:
         """현재 턴 플레이어의 기물이 해당 위치에 있는지 확인"""
         p = self._board(file, rank)
@@ -133,7 +151,17 @@ class ChessEngineAdapter:
         """
         해당 위치 기물의 합법적 이동 목표 리스트 반환
         chess_ext의 calcLegalMovesInOnePiece 사용
+        (현재 턴 색깔의 기물만 이동 가능)
         """
+        # 현재 턴 색깔 확인
+        try:
+            piece = self._board(file, rank)
+            piece_color = COLOR_TO_STR.get(piece.getColor(), "none")
+            if piece_color != self._turn_color:
+                return []  # 자신의 색깔이 아니면 이동 불가
+        except Exception:
+            return []
+        
         pgns = self._board.calcLegalMovesInOnePiece(file, rank)
         targets = []
         for pgn in pgns:
@@ -212,12 +240,18 @@ class ChessEngineAdapter:
                 mover_color = self._board(sf, sr).getColor()
                 target_piece = self._board(df, dr)
                 if target_piece.getPieceType() != chess_ext.PieceType.NONE and target_piece.getColor() != mover_color:
+                    self._board.controllPocketValue(mover_color, target_piece.getPieceType(), 1)
                     captured_stun = target_piece.getStun()
                     captured_move = target_piece.getMove()
             except Exception:
                 pass
 
-            self._board.updatePiece(matching_pgn)
+            try:
+                self._board.updatePiece(matching_pgn)
+            except Exception:
+                # updatePiece 실패 시 _turn_action_locked 리셋
+                self._turn_action_locked = False
+                return False
             try:
                 moved_piece = self._board(df, dr)
                 if captured_stun:
@@ -232,6 +266,9 @@ class ChessEngineAdapter:
             self._turn_moving_piece_pos = (df, dr)
             return True
         except Exception:
+            # 외부 예외 발생 시에도 _turn_action_locked 리셋
+            self._turn_action_locked = False
+            return False
             return False
 
     def promotion_options(self, src: Tuple[int, int], dst: Tuple[int, int]) -> List[str]:
@@ -296,18 +333,28 @@ class ChessEngineAdapter:
             # 해당 승격 PGN 선택
             legal_pgns = self._board.calcLegalMovesInOnePiece(sf, sr)
             chosen = None
+            mover_color_type = self._board(sf, sr).getColor()
+            
             for pgn in legal_pgns:
                 to_f, to_r = pgn.getToSquare()
                 if to_f == df and to_r == dr:
                     try:
-                        if pgn.getMoveType() == chess_ext.MoveType.PROMOTE and pgn.getPieceType() == pt:
+                        # moveType, pieceType, 색상(colorType) 모두 확인
+                        if (pgn.getMoveType() == chess_ext.MoveType.PROMOTE and 
+                            pgn.getPieceType() == pt and 
+                            pgn.getColorType() == mover_color_type):
                             chosen = pgn
                             break
                     except Exception:
                         pass
             if chosen is None:
                 return False
-            self._board.updatePiece(chosen)
+            try:
+                self._board.updatePiece(chosen)
+            except Exception:
+                # updatePiece 실패 시 _turn_action_locked 리셋
+                self._turn_action_locked = False
+                return False
             try:
                 promoted_piece = self._board(df, dr)
                 promoted_piece.setStun(old_stun)
@@ -323,6 +370,8 @@ class ChessEngineAdapter:
             self._turn_moving_piece_pos = (df, dr)
             return True
         except Exception:
+            # 외부 예외 발생 시에도 _turn_action_locked 리셋
+            self._turn_action_locked = False
             return False
 
     def drop(self, piece_type_str: str, file: int, rank: int) -> bool:
@@ -340,11 +389,18 @@ class ChessEngineAdapter:
         try:
             # ADD PGN 생성 (colorType, file, rank, pieceType)
             pgn = chess_ext.PGN(ct, file, rank, pt)
-            self._board.updatePiece(pgn)
+            try:
+                self._board.updatePiece(pgn)
+            except Exception:
+                # updatePiece 실패 시 _turn_action_locked 리셋
+                self._turn_action_locked = False
+                return False
             # 비-이동 행동은 턴을 잠금
             self._turn_action_locked = True
             return True
         except Exception:
+            # 외부 예외 발생 시에도 _turn_action_locked 리셋
+            self._turn_action_locked = False
             return False
 
     def stun(self, file: int, rank: int) -> bool:
@@ -377,10 +433,17 @@ class ChessEngineAdapter:
             ct = p.getColor()
             # SUCCESION PGN 생성 (colorType, file, rank, moveType)
             pgn = chess_ext.PGN(ct, file, rank, chess_ext.MoveType.SUCCESION)
-            self._board.updatePiece(pgn)
+            try:
+                self._board.updatePiece(pgn)
+            except Exception:
+                # updatePiece 실패 시 _turn_action_locked 리셋
+                self._turn_action_locked = False
+                return False
             self._turn_action_locked = True
             return True
         except Exception:
+            # 외부 예외 발생 시에도 _turn_action_locked 리셋
+            self._turn_action_locked = False
             return False
 
     def end_turn(self):
