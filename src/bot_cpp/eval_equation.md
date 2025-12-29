@@ -55,8 +55,8 @@ $$\mathrm{Eval} = w_M\cdot M + w_{Mob}\cdot Mob + w_{Res}\cdot Res + w_{Place}\c
 - 착수(PGN) 관점 스코어 예시:
 $$
 \mathrm{placementScore}(pgn,player) = \begin{cases}
-	+\mathrm{decay}(v,f,r) & \text{if player==WHITE} \\
-	-\mathrm{decay}(v,f,r) & \text{if player==BLACK} 
+	+ \mathrm{decay}(v,f,r) & \text{if player==WHITE} \\
+	- \mathrm{decay}(v,f,r) & \text{if player==BLACK} 
 \end{cases}
 $$
 
