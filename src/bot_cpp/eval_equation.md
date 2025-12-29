@@ -27,33 +27,33 @@
 
 - 평가 단위: 백 관점의 센티폰(cpn)
 - 전체 식:
-	$$\mathrm{Eval} = w_M\cdot M + w_{Mob}\cdot Mob + w_{Res}\cdot Res + w_{Place}\cdot Place + w_{Thr}\cdot Thr + w_{Turn}\cdot Turn + Royal$$
+$$\mathrm{Eval} = w_M\cdot M + w_{Mob}\cdot Mob + w_{Res}\cdot Res + w_{Place}\cdot Place + w_{Thr}\cdot Thr + w_{Turn}\cdot Turn + Royal$$
 
 - 권장 가중치(예시):
-	- $w_M = 1.0$ (Material)
-	- $w_{Mob} = 15.0$ (Mobility)
-	- $w_{Res} = 40.0$ (Resources: move/stun stacks)
-	- $w_{Place} = 30.0$ (Placement bias)
-	- $w_{Thr} = 50.0$ (Threat / capture potential)
-	- $w_{Turn} = 10.0$ (side-to-move bonus)
-	- $w_{Royal} = 8000.0$ (last-royal large bonus)
+- $w_M = 1.0$ (Material)
+- $w_{Mob} = 15.0$ (Mobility)
+- $w_{Res} = 40.0$ (Resources: move/stun stacks)
+- $w_{Place} = 30.0$ (Placement bias)
+- $w_{Thr} = 50.0$ (Threat / capture potential)
+- $w_{Turn} = 10.0$ (side-to-move bonus)
+- $w_{Royal} = 8000.0$ (last-royal large bonus)
 
 - 항목 정의:
-	- $M$: 보드 및 포켓에 있는 모든 기물의 합산 가치(백은 양수, 흑은 음수).
-	- $Mob$: 각 기물의 합법적/잠재적 이동 수(샘플링/캡 적용 가능)을 합산하여 기물별로 기여.
-	- $Res$: 각 기물에 대해 $$\text{moveStack} - 0.5\times\text{stunStack}$$ 의 합(백은 양수, 흑은 음수).
-	- $Thr$: 공격 가능한 상대 기물들의 가치 합(근사치 — 캡처 가능성을 샘플링해 더함).
-	- $Place$: 현재 보드에 놓인 각 기물의 위치에 대한 중심 편향 보너스(아래의 감쇠 함수 사용).
-	- $Turn$: 차례 보너스 — 백이 둘 차례면 $+1$, 흑이 둘 차례면 $-1$. (엔진에서 `pos.log`의 길이로 유추 가능)
-	- $Royal$: 로열이 한쪽만 남아 있으면 큰 보너스(백 단독이면 $+w_{Royal}$, 흑 단독이면 $-w_{Royal}$).
+- $M$: 보드 및 포켓에 있는 모든 기물의 합산 가치(백은 양수, 흑은 음수).
+- $Mob$: 각 기물의 합법적/잠재적 이동 수(샘플링/캡 적용 가능)을 합산하여 기물별로 기여.
+- $Res$: 각 기물에 대해 $$\text{moveStack} - 0.5\times\text{stunStack}$$ 의 합(백은 양수, 흑은 음수).
+- $Thr$: 공격 가능한 상대 기물들의 가치 합(근사치 — 캡처 가능성을 샘플링해 더함).
+- $Place$: 현재 보드에 놓인 각 기물의 위치에 대한 중심 편향 보너스(아래의 감쇠 함수 사용).
+- $Turn$: 차례 보너스 — 백이 둘 차례면 $+1$, 흑이 둘 차례면 $-1$. (엔진에서 `pos.log`의 길이로 유추 가능)
+- $Royal$: 로열이 한쪽만 남아 있으면 큰 보너스(백 단독이면 $+w_{Royal}$, 흑 단독이면 $-w_{Royal}$).
 
 - 착수(placement) 감쇠 함수(중앙 편향):
-	- 거리: $$d = \sqrt{(4.5 - f)^2 + (4.5 - r)^2}$$ (파일/랭크는 0..7)
-	- 감쇠: $$\mathrm{decay}(v,f,r) = v\cdot e^{-\lambda d},\quad \lambda = 0.35$$
-	- 착수 점수(기본값): 착수될 기물의 기본 가치 $v$에 위 감쇠를 곱해 더함(흑이면 부호 반전).
+- 거리: $$d = \sqrt{(4.5 - f)^2 + (4.5 - r)^2}$$ (파일/랭크는 0..7)
+- 감쇠: $$\mathrm{decay}(v,f,r) = v\cdot e^{-\lambda d},\quad \lambda = 0.35$$
+- 착수 점수(기본값): 착수될 기물의 기본 가치 $v$에 위 감쇠를 곱해 더함(흑이면 부호 반전).
 
 - 착수(PGN) 관점 스코어 예시:
-	$$\mathrm{placementScore}(pgn,player) = \begin{cases} +\mathrm{decay}(v,f,r) &\text{if player==WHITE} \\ -\mathrm{decay}(v,f,r) &\text{if player==BLACK} \end{cases}$$
+$$\mathrm{placementScore}(pgn,player) = \begin{cases} +\mathrm{decay}(v,f,r) &\text{if player==WHITE} \\\ -\mathrm{decay}(v,f,r) &\text{if player==BLACK} \end{cases}$$
 
 노트:
  - 이 식은 단순화된 가이드라인입니다 — 가중치와 $\lambda$는 실험적으로 튜닝하세요.
