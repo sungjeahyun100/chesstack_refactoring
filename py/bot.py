@@ -266,98 +266,68 @@ class NegamaxBot:
             self.engine.end_turn()
         return ok
 
-    def negamax(self, depth: int, alpha: float, beta: float, color_multiplier: int) -> float:
-        """스냅샷 기반 네가맥스 (알파-베타)"""
+    def negamax(self, depth, alpha, beta):
         self.nodes_searched += 1
-
         if depth == 0:
-            return color_multiplier * self.evaluate_board()
-
-        current_color = self.engine.turn
-        moves = self.get_all_moves(current_color)
+            return self.evaluate_board() if self.engine.turn == self.color else -self.evaluate_board()
+    
+        moves = self.get_all_moves(self.engine.turn)
         if not moves:
-            return color_multiplier * self.evaluate_board()
-
+            return self.evaluate_board() if self.engine.turn == self.color else -self.evaluate_board()
+    
         max_score = float('-inf')
-        base_snap = self.engine.snapshot()
-
+        base = self.engine.snapshot()
         for mv in moves:
-            self.engine.restore(base_snap)
-            if not self.make_move(mv):
-                continue
-            score = -self.negamax(depth - 1, -beta, -alpha, -color_multiplier)
+            self.engine.restore(base)
+            if not self.make_move(mv): continue
+            score = -self.negamax(depth-1, -beta, -alpha)
             if score > max_score:
                 max_score = score
             if score > alpha:
                 alpha = score
             if alpha >= beta:
                 break
-
-        self.engine.restore(base_snap)
+        self.engine.restore(base)
+        if max_score == float('-inf'):
+            return self.evaluate_board() if self.engine.turn == self.color else -self.evaluate_board()
         return max_score
     
     def get_best_move(self) -> bool:
         """
-        휴리스틱 평가로 최선의 수 찾아서 실행
+        네가맥스 탐색으로 최선의 수를 찾아 실행
         """
         current_turn = self.engine.turn
         if current_turn != self.color:
             return False
-        
+
         self.nodes_searched = 0
-        moves = []
-        
-        # 캡처 있는 이동을 먼저 수집
-        capture_moves = []
-        normal_moves = []
-        
-        for f in range(8):
-            for r in range(8):
-                targets = self.engine.legal_moves(f, r)
-                for tf, tr in targets:
-                    is_capture = False
-                    for piece in self.engine.board():
-                        if piece["file"] == tf and piece["rank"] == tr:
-                            if piece["color"] != self.color:
-                                is_capture = True
-                                break
-                    
-                    if is_capture:
-                        capture_moves.append(("move", (f, r), (tf, tr)))
-                    else:
-                        normal_moves.append(("move", (f, r), (tf, tr)))
-        
-        # 캡처 우선, 그 다음 일반 이동 제한
-        moves.extend(capture_moves)
-        moves.extend(normal_moves[:15])
-        
-        # 드롭
-        placements = self.engine.legal_placements(self.color)
-        for piece_type, f, r in placements[:5]:
-            moves.append(("drop", piece_type, (f, r)))
-        
-        # 승계
-        successions = self.engine.legal_successions(self.color)
-        for f, r in successions[:3]:
-            moves.append(("succession", (f, r)))
-        
+        moves = self.get_all_moves(self.color)
+
         if not moves:
             return False
-        
+
         best_move = None
         best_score = float('-inf')
-        
-        for move in moves:
-            score = self._evaluate_move(move)
-            score += random.uniform(0, 0.5)
-            
+        base_snap = self.engine.snapshot()
+
+        for mv in moves:
+            # Restore base snapshot before trying each candidate
+            self.engine.restore(base_snap)
+            if not self.make_move(mv):
+                continue
+
+            # Search from the opponent's perspective; negamax returns the value
+            score = -self.negamax(self.depth - 1, float('-inf'), float('inf'))
+
             if score > best_score:
                 best_score = score
-                best_move = move
-        
+                best_move = mv
+
+        # Restore to base state and execute the best move (if any)
+        self.engine.restore(base_snap)
         if best_move:
             return self.make_move(best_move)
-        
+
         return False
     
     def _evaluate_move(self, move: Tuple) -> float:

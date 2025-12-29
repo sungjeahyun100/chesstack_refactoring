@@ -25,7 +25,7 @@ int main(){
 
     testboard.displayPieceInfo(4, 0);
 
-    testboard.updatePiece(PGN(threatType::TAKEMOVE, 4, 0, 4, 1));
+    testboard.updatePiece(PGN(colorType::WHITE, threatType::TAKEMOVE, 4, 0, 4, 1));
 
     if(testboard(4, 0).isEmpty()) std::cout << "no piece in e1 square." << std::endl;
     if(!testboard(4, 1).isEmpty() && testboard(4, 1).getPieceType() == pieceType::KING) std::cout << "the king is in e2 square." << std::endl;

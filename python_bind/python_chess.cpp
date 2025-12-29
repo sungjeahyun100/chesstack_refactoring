@@ -120,8 +120,62 @@ PYBIND11_MODULE(chess_ext, m) {
 		.def("getBlackPocket", [](const chessboard &b) { return b.getBlackPocket(); })
 		.def("controllPocketValue", &chessboard::controllPocketValue)
 		// Snapshot/restore for search without mutating live board
-		.def("getBoardLog", &chessboard::getBoardLog)
-		.def("setBoardFromLog", &chessboard::setBoardFromLog);
+		.def("getPosition", [](const chessboard &b){
+			// Convert internal position to Python-serializable dict
+			auto pos = b.getPosition();
+			py::dict out;
+			py::list board; // list of rows
+			for(int f=0; f<BOARDSIZE; ++f){
+				py::list row;
+				for(int r=0; r<BOARDSIZE; ++r){
+					const piece &p = pos.board[f][r];
+					if(p.getPieceType() == pieceType::NONE){
+						row.append(py::none());
+					}else{
+						py::dict pd;
+						pd["piece_type"] = static_cast<int>(p.getPieceType());
+						pd["color"] = static_cast<int>(p.getColor());
+						pd["stun"] = p.getStun();
+						pd["move"] = p.getMove();
+						pd["is_royal"] = p.getIsRoyal();
+						row.append(pd);
+					}
+				}
+				board.append(row);
+			}
+			py::list wp; py::list bp;
+			for(int i=0;i<NUMBER_OF_PIECEKIND;++i){ wp.append(pos.whitePocket[i]); bp.append(pos.blackPocket[i]); }
+			out["board"] = board;
+			out["whitePocket"] = wp;
+			out["blackPocket"] = bp;
+			return out;
+		})
+		.def("setPosition", [](chessboard &b, py::dict d){
+			position pos;
+			py::list board = d["board"];
+			for(int f=0; f<BOARDSIZE; ++f){
+				py::list row = board[f];
+				for(int r=0; r<BOARDSIZE; ++r){
+					py::object cell = row[r];
+					if(cell.is_none()){
+						pos.board[f][r] = piece();
+					}else{
+						py::dict pd = cell.cast<py::dict>();
+						pieceType pt = static_cast<pieceType>(pd["piece_type"].cast<int>());
+						colorType ct = static_cast<colorType>(pd["color"].cast<int>());
+						int stun = pd["stun"].cast<int>();
+						int move = pd["move"].cast<int>();
+						piece p(ct, pt, stun, move);
+						if(pd.contains("is_royal") && pd["is_royal"].cast<bool>()) p.setRoyal(true);
+						pos.board[f][r] = p;
+					}
+				}
+			}
+			py::list wp = d["whitePocket"];
+			py::list bp = d["blackPocket"];
+			for(int i=0;i<NUMBER_OF_PIECEKIND;++i){ pos.whitePocket[i] = wp[i].cast<int>(); pos.blackPocket[i] = bp[i].cast<int>(); }
+			b.setPosition(pos);
+		});
 
 	// helper: expose pair<int,int> conversion automatically via stl
 }

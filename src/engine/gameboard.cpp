@@ -108,7 +108,7 @@ void chessboard::promotePiece(colorType cT, int file, int rank, pieceType promot
     }
 }
 
-std::vector<PGN> chessboard::calcLegalMovesInOnePiece(int file, int rank)
+std::vector<PGN> chessboard::calcLegalMovesInOnePiece(colorType cT, int file, int rank, bool calc_potential)
 {
     std::vector<PGN> result;
     result.clear();
@@ -119,15 +119,19 @@ std::vector<PGN> chessboard::calcLegalMovesInOnePiece(int file, int rank)
     }
 
     auto current_piece = board[file][rank];
-    auto cT = current_piece.getColor();
+    auto pieceColor = current_piece.getColor();
 
-    if(current_piece.getStun() > 0){
+    if(!calc_potential && current_piece.getStun() > 0){
         //std::cout << "that piece is stunned." << std::endl;
         return std::vector<PGN>();
     }
 
-    if(current_piece.getMove() == 0){
+    if(!calc_potential && current_piece.getMove() == 0){
         //std::cout << "that piece has no move stack." << std::endl;
+        return std::vector<PGN>();
+    }
+
+    if(current_piece.getColor() != cT){
         return std::vector<PGN>();
     }
 
@@ -306,7 +310,7 @@ std::vector<PGN> chessboard::calcLegalMovesInOnePiece(int file, int rank)
     return result;
 }
 
-std::vector<PGN> chessboard::calcLegalPlacePiece()
+std::vector<PGN> chessboard::calcLegalPlacePiece(colorType cT)
 {
     std::vector<PGN> result;
 
@@ -339,13 +343,14 @@ std::vector<PGN> chessboard::calcLegalPlacePiece()
         }
     };
 
-    collectPlacements(colorType::WHITE, whitePocket);
-    collectPlacements(colorType::BLACK, blackPocket);
+    if(cT == colorType::WHITE) collectPlacements(colorType::WHITE, whitePocket);
+    else if(cT == colorType::BLACK) collectPlacements(colorType::BLACK, blackPocket);
+    else return std::vector<PGN>();
 
     return result;
 }
 
-std::vector<PGN> chessboard::calcLegalSuccesion()
+std::vector<PGN> chessboard::calcLegalSuccesion(colorType cT)
 {
     std::vector<PGN> result;
 
@@ -354,8 +359,9 @@ std::vector<PGN> chessboard::calcLegalSuccesion()
             const piece& target = board[file][rank];
             if(target.isEmpty()) continue;
             if(target.getIsRoyal()) continue; // 이미 로얄인 경우 제외
+            if(target.getColor() != cT) continue;
 
-            result.push_back(PGN(target.getColor(), file, rank, moveType::SUCCESION));
+            result.push_back(PGN(cT, file, rank, moveType::SUCCESION));
         }
     }
 
@@ -373,9 +379,9 @@ void chessboard::updatePiece(PGN pgn)
     auto cT = pgn.getColorType();
 
     std::vector<PGN> legal_move;
-    if(mT == moveType::MOVE || mT == moveType::PROMOTE) legal_move = calcLegalMovesInOnePiece(fromSquare.first, fromSquare.second);
-    else if(mT == moveType::ADD) legal_move = calcLegalPlacePiece();
-    else if(mT == moveType::SUCCESION) legal_move = calcLegalSuccesion();
+    if(mT == moveType::MOVE || mT == moveType::PROMOTE) legal_move = calcLegalMovesInOnePiece(cT, fromSquare.first, fromSquare.second, false);
+    else if(mT == moveType::ADD) legal_move = calcLegalPlacePiece(cT);
+    else if(mT == moveType::SUCCESION) legal_move = calcLegalSuccesion(cT);
 
     if(legal_move.empty()){
         return;
@@ -392,6 +398,9 @@ void chessboard::updatePiece(PGN pgn)
         std::cout << "that pgn is illegal." << std::endl;
         return;
     }
+
+    // 스냅샷 저장 (undo를 위해 현재 상태를 position으로 저장)
+    snapshots.push_back(getPosition());
 
     if(mT == moveType::MOVE){
         switch (tT)
@@ -436,6 +445,8 @@ void chessboard::updatePiece(PGN pgn)
         }
         promotePiece(cT, toSquare.first, toSquare.second, pT);
     }
+
+    log.push_back(pgn);
 }
 
 void chessboard::pieceStackControllByColor(colorType cT, int d_stun, int d_move)
@@ -448,4 +459,18 @@ void chessboard::pieceStackControllByColor(colorType cT, int d_stun, int d_move)
             }
         }
     }
+}
+
+void chessboard::undoBoard(){
+    if(snapshots.empty()){
+        // fallback: if no snapshot, fallback to popping last log entry
+        if(!log.empty()) log.pop_back();
+        return;
+    }
+
+    position prev = snapshots.back();
+    snapshots.pop_back();
+
+    // restore full position
+    setPosition(prev);
 }

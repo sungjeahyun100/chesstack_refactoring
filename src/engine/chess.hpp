@@ -4,6 +4,10 @@
 #include <vector>
 #include <array>
 #include <algorithm>
+#include <sstream>
+#include <string>
+#include <cctype>
+#include <stdexcept>
 
 constexpr int BOARDSIZE = 8;
 constexpr int NUMBER_OF_PIECEKIND = 16;
@@ -58,7 +62,7 @@ struct piece{
         // 인스턴스가 가지는 동적 상태
         bool isRoyal;
 
-        void setupMoveChunk(); //pieceType에 따라 그에 맞는 설정값을 부여
+        void setupRoyal(); //pieceType에 따라 그에 맞는 설정값을 부여
         void setupStunStack();
     public:
         piece(){
@@ -71,15 +75,15 @@ struct piece{
         piece(colorType c, pieceType p) : cT(c), pT(p) {
             move_stack = 0;
             setupStunStack();
-            setupMoveChunk();
+            setupRoyal();
         }
         piece(colorType c, pieceType p, int stun) : cT(c), pT(p), stun_stack(stun) {
             move_stack = 0;
             setupStunStack();
-            setupMoveChunk();
+            setupRoyal();
         }
         piece(colorType c, pieceType p, int stun, int move) : cT(c), pT(p), stun_stack(stun), move_stack(move){
-            setupMoveChunk();
+            setupRoyal();
         }
 
         void setupStunStackWithPosition(int file, int rank); //프로모션하는 기물을 위한 착수 위치를 고려한 스턴 스택 설정
@@ -145,7 +149,6 @@ struct PGN{
     private:
         moveType mT;
 
-        //moveType::MOVE
         int fromFile; //어느 칸에서
         int fromRank;
         threatType tT; //어떤 종류의 영향을
@@ -191,6 +194,7 @@ struct PGN{
             if(toFile != compare.toFile) return false;
             if(toRank != compare.toRank) return false;
             if(pT != compare.pT) return false;
+            if(cT != compare.cT) return false;
 
             return true;
         }
@@ -205,17 +209,21 @@ struct PGN{
 };
 
 // Lightweight full-board snapshot using now-slim piece
-struct boardLog{
-    piece board[BOARDSIZE][BOARDSIZE];
+struct position{
+    std::array<std::array<piece, BOARDSIZE>, BOARDSIZE> board;
     std::array<int, NUMBER_OF_PIECEKIND> whitePocket;
     std::array<int, NUMBER_OF_PIECEKIND> blackPocket;
+    std::vector<PGN> log;
 };
 
 class chessboard{
     private:
-        piece board[BOARDSIZE][BOARDSIZE];
+        std::array<std::array<piece, BOARDSIZE>, BOARDSIZE> board;
         std::array<int, NUMBER_OF_PIECEKIND> whitePocket; //pieceType값을 인덱스로 사용함. 예시로 pieceType::KING == 0이니까 whitePocket[0] == 1이면 킹이 포켓에 1개 존재하는 거
         std::array<int, NUMBER_OF_PIECEKIND> blackPocket;
+        std::vector<PGN> log;
+        // position 기반 스냅샷 스택 (정확한 undo를 위해 사용)
+        std::vector<position> snapshots;
     public:
         chessboard(){
             whitePocket = {1, 1, 2, 2, 2, 8, //king queen bishop knight rook pwan
@@ -244,6 +252,18 @@ class chessboard{
             };
         }
 
+        chessboard(position& pos){
+            board = pos.board;
+            whitePocket = pos.whitePocket;
+            blackPocket = pos.blackPocket;
+        }
+
+        chessboard(const position& pos){
+            board = pos.board;
+            whitePocket = pos.whitePocket;
+            blackPocket = pos.blackPocket;
+        }
+
         piece& operator()(int file, int rank){
             return board[file][rank];
         }
@@ -261,9 +281,10 @@ class chessboard{
         void shiftPiece(int p1_file, int p1_rank, int p2_file, int p2_rank);
         void promotePiece(colorType cT, int file, int rank, pieceType promote);
 
-        std::vector<PGN> calcLegalMovesInOnePiece(int file, int rank); //포지션에 따라 특정 기물의 합법 수를 계산 (이동 & 승격 PGN반환)
-        std::vector<PGN> calcLegalPlacePiece();//특정 색상의 플레이어가 기물을 놓을 수 있는 착수 지점을 계산 (착수 PGN 반환)
-        std::vector<PGN> calcLegalSuccesion();//승격 가능한 상태인지, 그리고 어떤 기물을 승격시킬 수 있는지를 계산 (계승 PGN반환)
+        std::vector<PGN> calcLegalMovesInOnePiece(colorType cT, int file, int rank, bool calc_potential); //포지션에 따라 특정 기물의 합법 수를 계산 (이동 & 승격 PGN반환)
+        //calc_potential은 스택을 무시하고 이 기물이 잠재적으로 할 수 있는 행위를 계산하겠다는 뜻이다.
+        std::vector<PGN> calcLegalPlacePiece(colorType cT);//특정 색상의 플레이어가 기물을 놓을 수 있는 착수 지점을 계산 (착수 PGN 반환)
+        std::vector<PGN> calcLegalSuccesion(colorType cT);//승격 가능한 상태인지, 그리고 어떤 기물을 승격시킬 수 있는지를 계산 (계승 PGN반환)
 
         //행마법에 따라 보드를 조작하는 함수
         void updatePiece(PGN pgn); //기물의 threatType에 따라 보드 상태를 업데이트
@@ -292,25 +313,25 @@ class chessboard{
         }
 
         // Snapshot and restore helpers
-        boardLog getBoardLog() const {
-            boardLog log;
-            for(int f=0; f<BOARDSIZE; ++f){
-                for(int r=0; r<BOARDSIZE; ++r){
-                    log.board[f][r] = board[f][r];
-                }
-            }
-            log.whitePocket = whitePocket;
-            log.blackPocket = blackPocket;
-            return log;
+        position getPosition() const {
+            position pos;
+            pos.board = board;
+            pos.whitePocket = whitePocket;
+            pos.blackPocket = blackPocket;
+            pos.log = log; // 현재 로그도 스냅샷에 포함
+            return pos;
         }
 
-        void setBoardFromLog(const boardLog& log){
-            for(int f=0; f<BOARDSIZE; ++f){
-                for(int r=0; r<BOARDSIZE; ++r){
-                    board[f][r] = log.board[f][r];
-                }
-            }
-            whitePocket = log.whitePocket;
-            blackPocket = log.blackPocket;
+        void setPosition(const position& pos){
+            board = pos.board;
+            whitePocket = pos.whitePocket;
+            blackPocket = pos.blackPocket;
+            log = pos.log; // 스냅샷의 로그로 복원
         }
+
+        // 빠른 검사: 로그 크기(cheap)
+        int getLogSize() const { return static_cast<int>(log.size()); }
+
+        // undo using position snapshots
+        void undoBoard();
 };

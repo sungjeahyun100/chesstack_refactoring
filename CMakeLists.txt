@@ -7,7 +7,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_compile_options(-Wall -Wextra -pedantic)
 
-set(ENGINE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/engine)
+set(ENGINE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/engine)
+set(BOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/bot_cpp)
 
 option(BUILD_PYBINDING "Build pybind11 Python extension" ON)
 
@@ -17,9 +18,20 @@ add_library(engine_lib
     ${ENGINE_DIR}/piece_spec.cpp
     ${ENGINE_DIR}/piece_setting.cpp
     ${ENGINE_DIR}/debug.cpp
+
 )
 target_include_directories(engine_lib PUBLIC ${ENGINE_DIR})
 set_target_properties(engine_lib PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# Bot library (src/bot_cpp)
+add_library(bot_lib
+    ${BOT_DIR}/minimax.cpp
+    ${BOT_DIR}/minimax_gpt.cpp
+)
+# Bot depends on engine
+target_include_directories(bot_lib PUBLIC ${ENGINE_DIR} ${BOT_DIR})
+target_link_libraries(bot_lib PRIVATE engine_lib)
+set_target_properties(bot_lib PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # 실행 타겟(테스트 실행기)
 if(BUILD_TESTS)
@@ -28,6 +40,12 @@ if(BUILD_TESTS)
     )
     target_link_libraries(chess_test PRIVATE engine_lib)
     target_include_directories(chess_test PRIVATE ${ENGINE_DIR})
+
+    add_executable(test_bot
+        test/test_bot.cpp
+    )
+    target_link_libraries(test_bot PRIVATE engine_lib bot_lib)
+    target_include_directories(test_bot PRIVATE ${ENGINE_DIR} ${BOT_DIR})
 endif()
 
 

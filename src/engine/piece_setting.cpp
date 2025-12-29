@@ -1,7 +1,7 @@
 #include "chess.hpp"
 
 // piece::setupMoveChunk() 구현 (경량화: 규칙은 PieceSpecRegistry에서 관리)
-void piece::setupMoveChunk() {
+void piece::setupRoyal() {
     // 인스턴스 기본 로열티만 설정 (규칙상 동적 변경 가능)
     isRoyal = (pT == pieceType::KING);
 }

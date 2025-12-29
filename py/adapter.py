@@ -123,7 +123,7 @@ class ChessEngineAdapter:
     def snapshot(self):
         """엔진 상태 스냅샷 (보드 + 턴 메타)"""
         return {
-            "board_log": self._board.getBoardLog(),
+            "position": self._board.getPosition(),
             "turn_color": self._turn_color,
             "turn_action_locked": self._turn_action_locked,
             "turn_moving_piece_pos": self._turn_moving_piece_pos,
@@ -132,7 +132,7 @@ class ChessEngineAdapter:
 
     def restore(self, snap) -> None:
         """스냅샷으로 엔진 상태 복원"""
-        self._board.setBoardFromLog(snap["board_log"])
+        self._board.setPosition(snap["position"])
         self._turn_color = snap["turn_color"]
         self._turn_action_locked = snap["turn_action_locked"]
         self._turn_moving_piece_pos = snap["turn_moving_piece_pos"]
@@ -177,7 +177,14 @@ class ChessEngineAdapter:
         if color is None:
             color = self._turn_color
         
-        pgns = self._board.calcLegalPlacePiece()
+        # calcLegalPlacePiece requires a ColorType parameter in C++ binding
+        if color == "white":
+            pgns = self._board.calcLegalPlacePiece(chess_ext.ColorType.WHITE)
+        elif color == "black":
+            pgns = self._board.calcLegalPlacePiece(chess_ext.ColorType.BLACK)
+        else:
+            pgns = []
+
         placements = []
         for pgn in pgns:
             pgn_color = COLOR_TO_STR.get(pgn.getColorType(), "none")

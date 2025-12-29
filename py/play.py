@@ -254,7 +254,7 @@ def main(engine):
     # 봇 초기화 함수
     def create_bot(color: str, bot_type: str):
         if bot_type == "negamax":
-            return NegamaxBot(engine, color, depth=4)
+            return NegamaxBot(engine, color, depth=3)
         else:
             return WeightedBot(engine, color)
     

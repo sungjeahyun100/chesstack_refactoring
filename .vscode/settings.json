@@ -1,6 +1,7 @@
 {
     "C_Cpp.default.includePath": [
-        "${workspaceFolder}/engine/**",
+        "${workspaceFolder}/src/engine/**",
+        "${workspaceFolder}/src/bot_cpp/**",
         "${workspaceFolder}/.chesstack/lib/python3.12/site-packages/pybind11/include",
     ],
     "python-envs.pythonProjects": [
