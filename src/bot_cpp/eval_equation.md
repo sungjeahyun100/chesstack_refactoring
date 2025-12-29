@@ -53,9 +53,7 @@ $$\mathrm{Eval} = w_M\cdot M + w_{Mob}\cdot Mob + w_{Res}\cdot Res + w_{Place}\c
 - 착수 점수(기본값): 착수될 기물의 기본 가치 $v$에 위 감쇠를 곱해 더함(흑이면 부호 반전).
 
 - 착수(PGN) 관점 스코어 예시:
-$$
-\mathrm{placementScore}(pgn,player) = \begin{cases} + \mathrm{decay}(v,f,r) & \text{if player==WHITE} - \mathrm{decay}(v,f,r) & \text{if player==BLACK} \end{cases}
-$$
+$$\mathrm{placementScore}(pgn,player) = \begin{cases} + \mathrm{decay}(v,f,r) & \text{if player==WHITE} - \mathrm{decay}(v,f,r) & \text{if player==BLACK} \end{cases}$$
 
 노트:
  - 이 식은 단순화된 가이드라인입니다 — 가중치와 $\lambda$는 실험적으로 튜닝하세요.
