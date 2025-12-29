@@ -41,7 +41,7 @@
 - 항목 정의:
 	- $M$: 보드 및 포켓에 있는 모든 기물의 합산 가치(백은 양수, 흑은 음수).
 	- $Mob$: 각 기물의 합법적/잠재적 이동 수(샘플링/캡 적용 가능)을 합산하여 기물별로 기여.
-	- $Res$: 각 기물에 대해 $$\text{move_stack} - 0.5\times\text{stun_stack}$$ 의 합(백은 양수, 흑은 음수).
+	- $Res$: 각 기물에 대해 $$\text{moveStack} - 0.5\times\text{stunStack}$$ 의 합(백은 양수, 흑은 음수).
 	- $Thr$: 공격 가능한 상대 기물들의 가치 합(근사치 — 캡처 가능성을 샘플링해 더함).
 	- $Place$: 현재 보드에 놓인 각 기물의 위치에 대한 중심 편향 보너스(아래의 감쇠 함수 사용).
 	- $Turn$: 차례 보너스 — 백이 둘 차례면 $+1$, 흑이 둘 차례면 $-1$. (엔진에서 `pos.log`의 길이로 유추 가능)
@@ -53,7 +53,7 @@
 	- 착수 점수(기본값): 착수될 기물의 기본 가치 $v$에 위 감쇠를 곱해 더함(흑이면 부호 반전).
 
 - 착수(PGN) 관점 스코어 예시:
-	$$\mathrm{placement_score}(pgn,player) = \begin{cases} +\mathrm{decay}(v,f,r) &\text{if player==WHITE} \\ -\mathrm{decay}(v,f,r) &\text{if player==BLACK} \end{cases}$$
+	$$\mathrm{placementScore}(pgn,player) = \begin{cases} +\mathrm{decay}(v,f,r) &\text{if player==WHITE} \\ -\mathrm{decay}(v,f,r) &\text{if player==BLACK} \end{cases}$$
 
 노트:
  - 이 식은 단순화된 가이드라인입니다 — 가중치와 $\lambda$는 실험적으로 튜닝하세요.
