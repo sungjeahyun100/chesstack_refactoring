@@ -120,8 +120,6 @@ namespace agent{
         if(m.getThreatType() == threatType::NONE) return 0;
         auto to = m.getToSquare();
         int tf = to.first, tr = to.second;
-        // 안전을 위한 범위 검사
-        //if(tf < 0 || tf >= BOARDSIZE || tr < 0 || tr >= BOARDSIZE) return 0;
         const piece &victim = b.at(tf, tr);
         if(victim.getPieceType() == pieceType::NONE) {
             // 빈 칸으로 이동하거나 캡처가 아닌 위협일 수 있음
@@ -136,7 +134,6 @@ namespace agent{
         // 공격자: 출발 칸
         auto from = m.getFromSquare();
         int ff = from.first, fr = from.second;
-        //if(ff < 0 || ff >= BOARDSIZE || fr < 0 || fr >= BOARDSIZE) return 0;
         const piece &att = b.at(ff, fr);
         int val_victim = piece_value(victim.getPieceType());
         int val_att = piece_value(att.getPieceType());
@@ -437,23 +434,6 @@ namespace agent{
             }
         }
 
-        // 방어: 자기 자신으로 이동하는 비정상 PGN 제거
-        {
-            size_t oldsz = res.size();
-            auto it = std::remove_if(res.begin(), res.end(), [](const PGN &m){
-                if(m.getMoveType() == moveType::MOVE){
-                    auto f = m.getFromSquare(); auto t = m.getToSquare();
-                    if(f.first == t.first && f.second == t.second) return true;
-                }
-                return false;
-            });
-            if(it != res.end()){
-                res.erase(it, res.end());
-                size_t removed = oldsz - res.size();
-                std::cerr << "[minimax] filtered " << removed << " self-move PGN(s) from gather_moves()\n";
-            }
-        }
-
         return res;
     }
 
@@ -740,6 +720,43 @@ namespace agent{
         }
 
         return bestMove;
+    }
+
+    std::vector<PGN> minimax::getBestLine(position curr_pos, int depth){
+        // prepare simulate board and PV storage
+        simulate_board = chessboard(curr_pos);
+        offset_board = curr_pos;
+        root_pv.clear();
+
+        std::vector<PGN> pv;
+
+        if(!iterative_deepening){
+            (void)minimax_search(depth, cT, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), 0, pv);
+        } else {
+            int last_score = 0;
+            for(int d = 1; d <= depth; ++d){
+                pv.clear();
+                int score;
+                if(!use_aspiration || d == 1){
+                    score = minimax_search(d, cT, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), 0, pv);
+                } else {
+                    int window = aspiration_window_base;
+                    int alpha = last_score - window;
+                    int beta  = last_score + window;
+                    score = minimax_search(d, cT, alpha, beta, 0, pv);
+                    if(score <= alpha || score >= beta){
+                        score = minimax_search(d, cT, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), 0, pv);
+                    }
+                }
+                last_score = score;
+                if(!pv.empty()) root_pv = pv;
+            }
+        }
+
+        // build best line: start from the provided position log, then append PV continuation
+        std::vector<PGN> result = curr_pos.log;
+        for(const auto &m : pv) result.push_back(m);
+        return result;
     }
 
 } // namespace agent

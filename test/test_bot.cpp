@@ -32,26 +32,7 @@ static const char* pieceTypeToStr(pieceType pt){
 int main(){
     // 간단한 테스트 포지션 구성
     chessboard cb;
-    cb.placePiece(colorType::WHITE, pieceType::KING, 4, 0); // wK@e1
-    cb.placePiece(colorType::BLACK, pieceType::KING, 4, 7); // bK@e8
-
-    // 몇 가지 기물 배치로 브랜치 팩터 생성
-    cb.placePiece(colorType::WHITE, pieceType::ROOK, 0, 0);
-    cb.placePiece(colorType::WHITE, pieceType::KNIGHT, 1, 0);
-    cb.placePiece(colorType::WHITE, pieceType::PWAN, 2, 1);
-
-    cb.placePiece(colorType::BLACK, pieceType::ROOK, 7, 7);
-    cb.placePiece(colorType::BLACK, pieceType::KNIGHT, 6, 7);
-    cb.placePiece(colorType::BLACK, pieceType::PWAN, 5, 6);
-
-    // Ensure pieces have move stacks so they can actually move
-    cb(4,0).setMove(10);
-    cb(0,0).setMove(5);
-    cb(1,0).setMove(5);
-    cb(2,1).setMove(3);
-    cb(7,7).setMove(5);
-    cb(6,7).setMove(5);
-    cb(5,6).setMove(3);
+    cb.setVarientPiece();
 
     position pos = cb.getPosition();
 
@@ -61,8 +42,10 @@ int main(){
     std::vector<Result> results;
 
     // helper to build positions from piece lists
-    auto make_position = [&](const std::vector<std::tuple<colorType,pieceType,int,int>>& pieces){
+    auto make_position = [&](const std::vector<std::tuple<colorType,pieceType,int,int>>& pieces, bool has_varient){
         chessboard cb2;
+        if(has_varient) cb2.setVarientPiece();
+
         // place kings by default if none specified
         bool has_white_king=false, has_black_king=false;
         for(auto &t : pieces){
@@ -81,35 +64,52 @@ int main(){
 
     // single sample: small middlegame (original)
     samples.push_back(pos);
+//
+    //// additional samples constructed via helper
+    //samples.push_back(make_position({
+    //    {colorType::WHITE, pieceType::ROOK, 0,0},
+    //    {colorType::WHITE, pieceType::PWAN, 1,1},
+    //    {colorType::WHITE, pieceType::PWAN, 2,1},
+    //    {colorType::BLACK, pieceType::ROOK, 7,7},
+    //    {colorType::BLACK, pieceType::PWAN, 6,6}
+    //}, false)); // rook endgame-like
+//
+    //samples.push_back(make_position({
+    //    {colorType::WHITE, pieceType::QUEEN, 3,3},
+    //    {colorType::WHITE, pieceType::BISHOP, 2,2},
+    //    {colorType::WHITE, pieceType::KNIGHT, 1,2},
+    //    {colorType::BLACK, pieceType::QUEEN, 4,4},
+    //    {colorType::BLACK, pieceType::ROOK, 6,6},
+    //    {colorType::BLACK, pieceType::KNIGHT, 5,5}
+    //}, false)); // tactical middlegame
+//
+    //samples.push_back(make_position({
+    //    {colorType::WHITE, pieceType::ROOK, 0,1},
+    //    {colorType::WHITE, pieceType::ROOK, 1,1},
+    //    {colorType::WHITE, pieceType::KNIGHT, 2,2},
+    //    {colorType::BLACK, pieceType::ROOK, 7,6},
+    //    {colorType::BLACK, pieceType::BISHOP, 5,5},
+    //    {colorType::BLACK, pieceType::PWAN, 4,4}
+    //}, false)); // cramped tactics
 
-    // additional samples constructed via helper
-    samples.push_back(make_position({
-        {colorType::WHITE, pieceType::ROOK, 0,0},
-        {colorType::WHITE, pieceType::PWAN, 1,1},
-        {colorType::WHITE, pieceType::PWAN, 2,1},
-        {colorType::BLACK, pieceType::ROOK, 7,7},
-        {colorType::BLACK, pieceType::PWAN, 6,6}
-    })); // rook endgame-like
+    // --- Variant-piece samples (added for testing variant pieces like Amazon, Grasshopper, etc.)
+    //samples.push_back(make_position({
+    //    {colorType::WHITE, pieceType::AMAZON, 2,2},
+    //    {colorType::WHITE, pieceType::GRASSHOPPER, 3,2},
+    //    {colorType::WHITE, pieceType::KNIGHTRIDER, 1,3},
+    //    {colorType::BLACK, pieceType::ARCHBISHOP, 5,5},
+    //    {colorType::BLACK, pieceType::DABBABA, 6,6}
+    //}, true)); // variant tactical mix
 
-    samples.push_back(make_position({
-        {colorType::WHITE, pieceType::QUEEN, 3,3},
-        {colorType::WHITE, pieceType::BISHOP, 2,2},
-        {colorType::WHITE, pieceType::KNIGHT, 1,2},
-        {colorType::BLACK, pieceType::QUEEN, 4,4},
-        {colorType::BLACK, pieceType::ROOK, 6,6},
-        {colorType::BLACK, pieceType::KNIGHT, 5,5}
-    })); // tactical middlegame
+    //samples.push_back(make_position({
+    //    {colorType::WHITE, pieceType::CENTAUR, 1,1},
+    //    {colorType::WHITE, pieceType::CAMEL, 2,1},
+    //    {colorType::WHITE, pieceType::TEMPESTROOK, 3,1},
+    //    {colorType::BLACK, pieceType::ALFIL, 6,6},
+    //    {colorType::BLACK, pieceType::FERZ, 5,6}
+    //}, true)); // variant endgame-like
 
-    samples.push_back(make_position({
-        {colorType::WHITE, pieceType::ROOK, 0,1},
-        {colorType::WHITE, pieceType::ROOK, 1,1},
-        {colorType::WHITE, pieceType::KNIGHT, 2,2},
-        {colorType::BLACK, pieceType::ROOK, 7,6},
-        {colorType::BLACK, pieceType::BISHOP, 5,5},
-        {colorType::BLACK, pieceType::PWAN, 4,4}
-    })); // cramped tactics
-
-    const int maxDepth = 5; // keep reasonable for automated runs
+    const int maxDepth = 40; // keep reasonable for automated runs
     for(size_t pid=0; pid<samples.size(); ++pid){
         const position &pcur = samples[pid];
         position mutable_pos = pcur; // chessboard ctor expects non-const reference
@@ -131,34 +131,7 @@ int main(){
         mutable_pos = cbx.getPosition();
 
         agent::minimax_GPTproposed botx(mutable_pos, colorType::WHITE);
-        botx.setPlacementSample(4);
-        /** 뎊스 5까지 확인 결과:
-         * 샘플링 1개:비정상적 PGN 반환 없음
-         * 샘플링 2개:1번 보드 뎊스 5에서 0,0 to 0,0 발생
-         * 샘플링 3개:1번 보드 뎊스 5에서 0,0 to 0,0 발생
-         * 샘플링 4개:1번 보드 뎊스 4에서, 4번 보드 뎊스 3에서 0,0 to 0,0 발생 
-         * 샘플링 5개:2번 보드 뎊스 3에서 0,0 to 0,0 발생 
-         * 샘플링 6개:2번 보드 뎊스 3에서 0,0 to 0,0 발생 
-         * 샘플링 7개:2번 보드 뎊스 3에서 0,0 to 0,0 발생 
-         * 샘플링 8개:2번 보드 뎊스 3에서 0,0 to 0,0 발생 
-         * 샘플링 9개:2번 보드 뎊스 3에서 0,0 to 0,0 발생 
-         * 샘플링 10개: 비정상적 PGN 반환 없음
-         * 샘플링 11개: 비정상적 PGN 반환 없음
-        */
-
-        /**뎊스 10까지 확인 결과:
-        * 샘플링 1개:비정상적 PGN 반환 없음
-        * 샘플링 2개:1번 보드 뎊스 5~10에서, 2번 보드 뎊스 10에서 0,0 to 0,0 발생
-        * 샘플링 3개:1번 보드 뎊스 5,7,8에서 0,0 to 0,0 발생, 4번 보드 뎊스 8~10 pv와 asp에서 move (1, 1) -> (0, 0) 이상 PGN 발생 ((1,1)엔 룩이 있다.)
-        * 샘플링 4개:1번 보드 뎊스 4에서 0,0 to 0,0 발생
-        * 샘플링 5개:2번 보드 뎊스 3에서 0,0 to 0,0 발생 
-        * 샘플링 6개:2번 보드 뎊스 3에서 0,0 to 0,0 발생 
-        * 샘플링 7개:2번 보드 뎊스 3에서 0,0 to 0,0 발생 
-        * 샘플링 8개:2번 보드 뎊스 3에서 0,0 to 0,0 발생 
-        * 샘플링 9개:2번 보드 뎊스 3, 7에서 0,0 to 0,0 발생 
-        * 샘플링 10개: 2번 보드 뎊스 7에서 0,0 to 0,0 발생 
-        * 샘플링 11개: 비정상적 PGN 반환 없음
-        */
+        botx.setPlacementSample(3);
 
         for(int depth = 1; depth <= maxDepth; ++depth){
             auto t0 = std::chrono::high_resolution_clock::now();
@@ -177,6 +150,7 @@ int main(){
             std::string move_str;
             if(mv.getMoveType() == moveType::NONE) move_str = "NO_MOVE";
             else if(mv.getMoveType() == moveType::ADD){ auto f=mv.getFromSquare(); move_str = std::string("ADD ") + pieceTypeToStr(mv.getPieceType()) + " at(" + std::to_string(f.first)+","+std::to_string(f.second)+")"; }
+            else if(mv.getMoveType() == moveType::SUCCESION){auto f=mv.getFromSquare(); move_str = std::string("SUCESSION ") + "at(" + std::to_string(f.first)+","+std::to_string(f.second)+")";}
             else { auto f=mv.getFromSquare(); auto t=mv.getToSquare(); move_str = "from("+std::to_string(f.first)+","+std::to_string(f.second)+")->("+std::to_string(t.first)+","+std::to_string(t.second)+")"; }
 
             results.push_back({(int)pid+1, depth, botx.getNodesSearched(), total_ms, search_ms, "base", move_str});
@@ -199,6 +173,7 @@ int main(){
             std::string move_str2;
             if(mv2.getMoveType() == moveType::NONE) move_str2 = "NO_MOVE";
             else if(mv2.getMoveType() == moveType::ADD){ auto f=mv2.getFromSquare(); move_str2 = std::string("ADD ") + pieceTypeToStr(mv2.getPieceType()) + " at(" + std::to_string(f.first)+","+std::to_string(f.second)+")"; }
+            else if(mv.getMoveType() == moveType::SUCCESION){auto f=mv.getFromSquare(); move_str2 = std::string("SUCESSION ") + "at(" + std::to_string(f.first)+","+std::to_string(f.second)+")";}
             else { auto f=mv2.getFromSquare(); auto t=mv2.getToSquare(); move_str2 = "from("+std::to_string(f.first)+","+std::to_string(f.second)+")->("+std::to_string(t.first)+","+std::to_string(t.second)+")"; }
 
             results.push_back({(int)pid+1, depth, botx.getNodesSearched(), total_ms2, search_ms2, "pv", move_str2});
@@ -222,6 +197,7 @@ int main(){
             std::string move_str3;
             if(mv3.getMoveType() == moveType::NONE) move_str3 = "NO_MOVE";
             else if(mv3.getMoveType() == moveType::ADD){ auto f=mv3.getFromSquare(); move_str3 = std::string("ADD ") + pieceTypeToStr(mv3.getPieceType()) + " at(" + std::to_string(f.first)+","+std::to_string(f.second)+")"; }
+            else if(mv.getMoveType() == moveType::SUCCESION){auto f=mv.getFromSquare(); move_str3 = std::string("SUCESSION ") + "at(" + std::to_string(f.first)+","+std::to_string(f.second)+")";}
             else { auto f=mv3.getFromSquare(); auto t=mv3.getToSquare(); move_str3 = "from("+std::to_string(f.first)+","+std::to_string(f.second)+")->("+std::to_string(t.first)+","+std::to_string(t.second)+")"; }
 
             results.push_back({(int)pid+1, depth, botx.getNodesSearched(), total_ms3, search_ms3, "pv+asp", move_str3});

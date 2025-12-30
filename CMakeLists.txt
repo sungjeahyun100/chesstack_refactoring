@@ -46,6 +46,12 @@ if(BUILD_TESTS)
     )
     target_link_libraries(test_bot PRIVATE engine_lib bot_lib)
     target_include_directories(test_bot PRIVATE ${ENGINE_DIR} ${BOT_DIR})
+
+    add_executable(test_bot_line
+        test/test_bot_line.cpp
+    )
+    target_link_libraries(test_bot_line PRIVATE engine_lib bot_lib)
+    target_include_directories(test_bot_line PRIVATE ${ENGINE_DIR} ${BOT_DIR})
 endif()
 
 

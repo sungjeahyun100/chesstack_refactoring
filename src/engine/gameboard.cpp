@@ -447,6 +447,8 @@ void chessboard::updatePiece(PGN pgn)
     }
 
     log.push_back(pgn);
+    // advance turn after a successful move
+    turn_right = (turn_right == colorType::WHITE) ? colorType::BLACK : colorType::WHITE;
 }
 
 void chessboard::pieceStackControllByColor(colorType cT, int d_stun, int d_move)
@@ -465,6 +467,8 @@ void chessboard::undoBoard(){
     if(snapshots.empty()){
         // fallback: if no snapshot, fallback to popping last log entry
         if(!log.empty()) log.pop_back();
+        // also flip turn since we popped a move
+        turn_right = (turn_right == colorType::WHITE) ? colorType::BLACK : colorType::WHITE;
         return;
     }
 

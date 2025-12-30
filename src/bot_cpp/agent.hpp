@@ -10,6 +10,7 @@ namespace agent{
         public:
             virtual int eval_pos(const position& pos) const = 0; //평가 함수, -값이면 흑이 좋고, +값이면 백이 좋은 포지션
             virtual PGN getBestMove(position curr_pos, int depth) = 0; //최선수 찾기
+            virtual std::vector<PGN> getBestLine(position curr_pos, int depth) = 0; //최선의 라인 찾기
     };
 
     class minimax : public bot{
@@ -129,6 +130,7 @@ namespace agent{
 
             virtual int eval_pos(const position& pos) const override;
             virtual PGN getBestMove(position curr_pos, int depth) override;
+            virtual std::vector<PGN> getBestLine(position curr_pos, int depth) override;
     };
 
     // Alternative minimax bot that uses the GPT-proposed evaluation function.
@@ -140,6 +142,7 @@ namespace agent{
         virtual ~minimax_GPTproposed();
         virtual int eval_pos(const position& pos) const override; // delegates to internal impl
         virtual PGN getBestMove(position curr_pos, int depth) override; // delegates to internal impl
+        virtual std::vector<PGN> getBestLine(position curr_pos, int depth) override;
         // Control/inspection helpers forwarded to internal minimax implementation
         void setPlacementSample(size_t k);
         void reset_search_data();

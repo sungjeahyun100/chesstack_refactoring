@@ -40,13 +40,13 @@ struct minimax_gpt_impl : public minimax {
     minimax_gpt_impl(position pos, colorType ct) : minimax(pos, ct) {}
     virtual int eval_pos(const position& pos) const override {
         // Weighted sum of components (centipawn-ish scale)
-        const double w_M = 1.0;        // material
-        const double w_Mob = 15.0;     // mobility
-        const double w_Res = 40.0;     // resource (move/stun stacks)
-        const double w_Place = 30.0;   // placement bias
-        const double w_Thr = 50.0;     // threat/capture potential
-        const double w_Turn = 10.0;    // side-to-move bonus
-        const double w_Royal = 8000.0; // last-royal bonus
+        const double w_M = 1.0;        // 기물 자체 가치
+        const double w_Mob = 15.0;     // 이동성
+        const double w_Res = 40.0;     // 스택 가치 (move/stun stacks)
+        const double w_Place = 30.0;   // 착수 위치의 중앙 거리 대비 가중치
+        const double w_Thr = 50.0;     // threat/capture potential 기물 공격 가중치
+        const double w_Turn = 5.0;    // side-to-move bonus 템포 가중치
+        const double w_Royal = 8000.0; // last-royal bonus 마지막 남은 로얄 피스 가중치
 
         chessboard tmp(pos);
         double Mat = 0.0;
@@ -131,8 +131,8 @@ struct minimax_gpt_impl : public minimax {
         if(white_royal == 1 && black_royal == 0) Royal = w_Royal;
         if(black_royal == 1 && white_royal == 0) Royal = -w_Royal;
 
-        // infer side-to-move from position log parity: even -> WHITE to move, odd -> BLACK
-        double Turn = ((pos.log.size() % 2) == 0) ? 1.0 : -1.0;
+        // infer side-to-move from explicit flag `turn_right` in position
+        double Turn = (pos.turn_right == colorType::WHITE) ? 1.0 : -1.0;
 
         double eval = 0.0;
         eval += w_M * Mat;
@@ -171,6 +171,11 @@ int minimax_GPTproposed::eval_pos(const position& pos) const {
 
 PGN minimax_GPTproposed::getBestMove(position curr_pos, int depth) {
     return impl->mptr->getBestMove(curr_pos, depth);
+}
+
+std::vector<PGN> minimax_GPTproposed::getBestLine(position curr_pos, int depth)
+{
+    return impl->mptr->getBestLine(curr_pos, depth);
 }
 
 // Forwarding control/inspection helpers

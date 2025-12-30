@@ -213,6 +213,7 @@ struct position{
     std::array<std::array<piece, BOARDSIZE>, BOARDSIZE> board;
     std::array<int, NUMBER_OF_PIECEKIND> whitePocket;
     std::array<int, NUMBER_OF_PIECEKIND> blackPocket;
+    colorType turn_right;
     std::vector<PGN> log;
 };
 
@@ -221,11 +222,13 @@ class chessboard{
         std::array<std::array<piece, BOARDSIZE>, BOARDSIZE> board;
         std::array<int, NUMBER_OF_PIECEKIND> whitePocket; //pieceType값을 인덱스로 사용함. 예시로 pieceType::KING == 0이니까 whitePocket[0] == 1이면 킹이 포켓에 1개 존재하는 거
         std::array<int, NUMBER_OF_PIECEKIND> blackPocket;
+        colorType turn_right;
         std::vector<PGN> log;
         // position 기반 스냅샷 스택 (정확한 undo를 위해 사용)
         std::vector<position> snapshots;
     public:
         chessboard(){
+            turn_right = colorType::WHITE;
             whitePocket = {1, 1, 2, 2, 2, 8, //king queen bishop knight rook pwan
                 0, //amazon
                 0, //grasshopper
@@ -256,12 +259,14 @@ class chessboard{
             board = pos.board;
             whitePocket = pos.whitePocket;
             blackPocket = pos.blackPocket;
+            turn_right = pos.turn_right;
         }
 
         chessboard(const position& pos){
             board = pos.board;
             whitePocket = pos.whitePocket;
             blackPocket = pos.blackPocket;
+            turn_right = pos.turn_right;
         }
 
         piece& operator()(int file, int rank){
@@ -280,6 +285,32 @@ class chessboard{
         void succesionPiece(int file, int rank);
         void shiftPiece(int p1_file, int p1_rank, int p2_file, int p2_rank);
         void promotePiece(colorType cT, int file, int rank, pieceType promote);
+        void setVarientPiece(){
+            whitePocket = {1, 1, 2, 2, 2, 8, //king queen bishop knight rook pwan
+                1, //amazon
+                1, //grasshopper
+                1, //knightrider
+                1, //archbishop
+                1, //dababba
+                1, //alfil
+                1, //frez
+                1, //centaur
+                1, //camel
+                1  //tempest rook
+            };
+            blackPocket = {1, 1, 2, 2, 2, 8, //king queen bishop knight rook pwan
+                1, //amazon
+                1, //grasshopper
+                1, //knightrider
+                1, //archbishop
+                1, //dababba
+                1, //alfil
+                1, //frez
+                1, //centaur
+                1, //camel
+                1  //tempest rook
+            };
+        }
 
         std::vector<PGN> calcLegalMovesInOnePiece(colorType cT, int file, int rank, bool calc_potential); //포지션에 따라 특정 기물의 합법 수를 계산 (이동 & 승격 PGN반환)
         //calc_potential은 스택을 무시하고 이 기물이 잠재적으로 할 수 있는 행위를 계산하겠다는 뜻이다.
@@ -301,6 +332,7 @@ class chessboard{
 		//포켓 접근자
 		const std::array<int, NUMBER_OF_PIECEKIND>& getWhitePocket() const { return whitePocket; }
 		const std::array<int, NUMBER_OF_PIECEKIND>& getBlackPocket() const { return blackPocket; }
+        colorType getTurn() const { return turn_right; }
 
         void controllPocketValue(colorType cT, pieceType pT, int amount) {
             if(cT == colorType::WHITE){
@@ -319,6 +351,7 @@ class chessboard{
             pos.whitePocket = whitePocket;
             pos.blackPocket = blackPocket;
             pos.log = log; // 현재 로그도 스냅샷에 포함
+            pos.turn_right = turn_right;
             return pos;
         }
 
@@ -327,9 +360,11 @@ class chessboard{
             whitePocket = pos.whitePocket;
             blackPocket = pos.blackPocket;
             log = pos.log; // 스냅샷의 로그로 복원
+            turn_right = pos.turn_right;
         }
 
         // 빠른 검사: 로그 크기(cheap)
+        std::vector<PGN> getLog() const {return log;}
         int getLogSize() const { return static_cast<int>(log.size()); }
 
         // undo using position snapshots
