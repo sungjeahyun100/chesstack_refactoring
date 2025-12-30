@@ -41,18 +41,18 @@ int main(){
     // Create a valid default position via chessboard default constructor
     chessboard cb_default;
     cb_default.setVarientPiece();
-    cb_default.placePiece(colorType::WHITE, pieceType::KING, 4, 3);
+    //cb_default.placePiece(colorType::WHITE, pieceType::KING, 4, 3);
     position pos = cb_default.getPosition();
     // default-constructed board array contains piece::NONE; pockets keep initial values
 
     // Create minimax bot to play as WHITE
-    agent::minimax_GPTproposed bot(pos, colorType::BLACK);
+    agent::minimax_GPTproposed bot;
     bot.setIterativeDeepening(true);
     bot.setUseAspiration(false);
     bot.setPlacementSample(5);
 
     // Search depth (small for test)
-    int depth = 12;
+    int depth = 3;
 
     auto line = bot.getBestLine(pos, depth);
 

@@ -102,7 +102,14 @@ namespace agent{
             double placement_score(const PGN &pgn, colorType player) const;
 
         public:
-            minimax(position pos, colorType ct) : cT(ct), offset_board(pos), killers(MAX_PLY) { history.reserve(1024); init_zobrist(); }
+            bool follow_turn = false;
+
+            // Construct with fixed color
+            minimax(colorType ct) : cT(ct), offset_board(), killers(MAX_PLY), follow_turn(false) { history.reserve(1024); init_zobrist(); }
+            // Default construct as WHITE fixed color
+            minimax() : cT(colorType::WHITE), offset_board(), killers(MAX_PLY), follow_turn(false) { history.reserve(1024); init_zobrist(); }
+            // Control whether the bot should follow the provided position's `turn_right` at query time
+            void setFollowTurn(bool v) { follow_turn = v; }
 
             // public diagnostics
             uint64_t nodes_searched = 0;
@@ -138,7 +145,8 @@ namespace agent{
     // `minimax`-based implementation which overrides the evaluation function.
     class minimax_GPTproposed : public bot {
     public:
-        minimax_GPTproposed(position pos, colorType ct);
+        minimax_GPTproposed(colorType ct);
+        minimax_GPTproposed();
         virtual ~minimax_GPTproposed();
         virtual int eval_pos(const position& pos) const override; // delegates to internal impl
         virtual PGN getBestMove(position curr_pos, int depth) override; // delegates to internal impl

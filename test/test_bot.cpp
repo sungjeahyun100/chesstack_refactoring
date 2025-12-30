@@ -130,7 +130,7 @@ int main(){
         // reflect back to position used by bot
         mutable_pos = cbx.getPosition();
 
-        agent::minimax_GPTproposed botx(mutable_pos, colorType::WHITE);
+        agent::minimax_GPTproposed botx(colorType::WHITE);
         botx.setPlacementSample(3);
 
         for(int depth = 1; depth <= maxDepth; ++depth){

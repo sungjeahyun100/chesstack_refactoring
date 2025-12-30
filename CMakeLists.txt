@@ -66,7 +66,7 @@ if(BUILD_PYBINDING)
     pybind11_add_module(chess_ext
         python_bind/python_chess.cpp
     )
-    target_link_libraries(chess_ext PRIVATE engine_lib)
-    target_include_directories(chess_ext PRIVATE ${ENGINE_DIR})
+    target_link_libraries(chess_ext PRIVATE engine_lib bot_lib)
+    target_include_directories(chess_ext PRIVATE ${ENGINE_DIR} ${BOT_DIR})
     set_target_properties(chess_ext PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endif()

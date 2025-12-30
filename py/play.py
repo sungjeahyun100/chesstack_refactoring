@@ -5,7 +5,7 @@ from typing import Dict, List, Tuple, Optional
 import time
 
 from adapter import ChessEngineAdapter
-from bot import WeightedBot, NegamaxBot
+from bot import MinimaxBot, MinimaxGPTBot
 engine = ChessEngineAdapter()
 
 # 필요한 어댑터 인터페이스 예시:
@@ -56,7 +56,7 @@ class UIState:
         # Bot settings
         self.bot_enabled: bool = False  # 봇 활성화 여부
         self.bot_color: str = "black"   # 봇이 조종할 색 ("white" 또는 "black")
-        self.bot_type: str = "weighted" # 봇 타입 ("weighted" 또는 "negamax")
+        self.bot_type: str = "my_propose" # 봇 타입 
         self.bot_last_move_time: float = 0
         self.bot_move_delay: float = 0.8  # 봇이 행동하기까지 대기 시간 (초)
 
@@ -253,10 +253,10 @@ def main(engine):
     
     # 봇 초기화 함수
     def create_bot(color: str, bot_type: str):
-        if bot_type == "negamax":
-            return NegamaxBot(engine, color, depth=3)
+        if bot_type == "GPTproposed":
+            return MinimaxGPTBot(engine, color, depth=3)
         else:
-            return WeightedBot(engine, color)
+            return MinimaxBot(engine, color, depth=3)
     
     # 봇 초기화
     bot = create_bot(ui.bot_color, ui.bot_type)
@@ -277,7 +277,7 @@ def main(engine):
                     ui.bot_last_move_time = time.time()
                 elif ev.key == pygame.K_n:
                     # N: toggle bot type
-                    ui.bot_type = "negamax" if ui.bot_type == "weighted" else "weighted"
+                    ui.bot_type = "GPTproposed" if ui.bot_type == "my_propose" else "my_propose"
                     bot = create_bot(ui.bot_color, ui.bot_type)
                     ui.status = f"Bot type: {ui.bot_type}"
                 elif ev.key == pygame.K_b:
@@ -455,11 +455,7 @@ def main(engine):
             if current_time - ui.bot_last_move_time >= ui.bot_move_delay:
                 # 봇 행동 시도
                 if bot.get_best_move():
-                    if isinstance(bot, NegamaxBot):
-                        eval_score = bot.evaluate_board()
-                        ui.status = f"Bot ({ui.bot_color}/{ui.bot_type}) moved | eval: {eval_score:.1f}"
-                    else:
-                        ui.status = f"Bot ({ui.bot_color}/{ui.bot_type}) moved"
+                    ui.status = f"Bot ({ui.bot_color}/{ui.bot_type}) moved"
                 else:
                     ui.status = f"Bot ({ui.bot_color}) has no moves"
                     engine.end_turn()

@@ -350,7 +350,7 @@ class chessboard{
             pos.board = board;
             pos.whitePocket = whitePocket;
             pos.blackPocket = blackPocket;
-            pos.log = log; // 현재 로그도 스냅샷에 포함
+            pos.log = log; 
             pos.turn_right = turn_right;
             return pos;
         }
@@ -359,7 +359,7 @@ class chessboard{
             board = pos.board;
             whitePocket = pos.whitePocket;
             blackPocket = pos.blackPocket;
-            log = pos.log; // 스냅샷의 로그로 복원
+            log = pos.log; 
             turn_right = pos.turn_right;
         }
 

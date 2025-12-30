@@ -686,6 +686,13 @@ namespace agent{
 
         root_pv.clear();
 
+        // follow_turn mode: adapt to position.turn_right; otherwise require match
+        if(follow_turn){
+            cT = curr_pos.turn_right;
+        } else {
+            if(curr_pos.turn_right != cT) return PGN();
+        }
+
         if(!iterative_deepening){
             // 단발 검색(한 번에 전체 깊이 탐색)
             std::vector<PGN> pv;
@@ -729,6 +736,13 @@ namespace agent{
         root_pv.clear();
 
         std::vector<PGN> pv;
+
+        // follow_turn mode: adapt to position.turn_right; otherwise require match
+        if(follow_turn){
+            cT = curr_pos.turn_right;
+        } else {
+            if(curr_pos.turn_right != cT) return curr_pos.log;
+        }
 
         if(!iterative_deepening){
             (void)minimax_search(depth, cT, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), 0, pv);

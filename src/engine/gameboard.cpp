@@ -379,9 +379,9 @@ void chessboard::updatePiece(PGN pgn)
     auto cT = pgn.getColorType();
 
     std::vector<PGN> legal_move;
-    if(mT == moveType::MOVE || mT == moveType::PROMOTE) legal_move = calcLegalMovesInOnePiece(cT, fromSquare.first, fromSquare.second, false);
-    else if(mT == moveType::ADD) legal_move = calcLegalPlacePiece(cT);
-    else if(mT == moveType::SUCCESION) legal_move = calcLegalSuccesion(cT);
+    if(mT == moveType::MOVE || mT == moveType::PROMOTE) legal_move = calcLegalMovesInOnePiece(turn_right, fromSquare.first, fromSquare.second, false);
+    else if(mT == moveType::ADD) legal_move = calcLegalPlacePiece(turn_right);
+    else if(mT == moveType::SUCCESION) legal_move = calcLegalSuccesion(turn_right);
 
     if(legal_move.empty()){
         return;

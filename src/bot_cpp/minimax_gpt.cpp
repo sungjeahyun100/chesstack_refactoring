@@ -37,7 +37,8 @@ static double placement_decay(double base_value, int f, int r){
 
 // Internal minimax subclass that overrides eval_pos/placement_score
 struct minimax_gpt_impl : public minimax {
-    minimax_gpt_impl(position pos, colorType ct) : minimax(pos, ct) {}
+    minimax_gpt_impl(colorType ct) : minimax(ct) {}
+    minimax_gpt_impl() : minimax() {}
     virtual int eval_pos(const position& pos) const override {
         // Weighted sum of components (centipawn-ish scale)
         const double w_M = 1.0;        // 기물 자체 가치
@@ -159,10 +160,11 @@ struct minimax_gpt_impl : public minimax {
 // Public wrapper that fulfills the `bot` interface and delegates to internal impl
 struct minimax_GPTproposed::Impl {
     std::unique_ptr<minimax_gpt_impl> mptr;
-    Impl(position pos, colorType ct) { mptr = std::make_unique<minimax_gpt_impl>(pos, ct); }
+    Impl(colorType ct) { mptr = std::make_unique<minimax_gpt_impl>(ct); }
+    Impl() { mptr = std::make_unique<minimax_gpt_impl>(); }
 };
-
-minimax_GPTproposed::minimax_GPTproposed(position pos, colorType ct) : impl(std::make_unique<Impl>(pos, ct)){}
+minimax_GPTproposed::minimax_GPTproposed(colorType ct) : impl(std::make_unique<Impl>(ct)){}
+minimax_GPTproposed::minimax_GPTproposed() : impl(std::make_unique<Impl>()){}
 minimax_GPTproposed::~minimax_GPTproposed() = default;
 
 int minimax_GPTproposed::eval_pos(const position& pos) const {
