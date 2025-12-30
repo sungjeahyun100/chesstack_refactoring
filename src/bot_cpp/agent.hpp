@@ -78,6 +78,7 @@ namespace agent{
             void init_zobrist();
             uint64_t compute_zobrist(const position &pos) const;
             uint64_t current_zobrist = 0ULL;
+            static constexpr int MATE_SCORE = 1000000;
             void update_zobrist_for_move(uint64_t &h, const PGN &m, const chessboard &b, colorType player) const;
 
             int minimax_search(int depth, colorType player, int alpha, int beta, int ply, std::vector<PGN>& pv_out);

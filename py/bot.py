@@ -23,6 +23,7 @@ class MinimaxBot:
         self.engine = engine
         self.color = color
         self.depth = depth
+        self._last_move_str = ""
         ct = chess_ext.ColorType.WHITE if color == "white" else chess_ext.ColorType.BLACK
         self._bot = chess_ext.Minimax(ct)
         try:
@@ -52,9 +53,20 @@ class MinimaxBot:
                 sym = PIECE_TYPE_TO_STR.get(pgn.getPieceType(), "")
                 if not sym:
                     return False
-                return self.engine.promote_move((sf, sr), (df, dr), sym)
+                ok = self.engine.promote_move((sf, sr), (df, dr), sym)
+                # record standardized move string on adapter for UI
+                try:
+                    self._last_move_str = f"from({sf},{sr})->({df},{dr})"
+                except Exception:
+                    pass
+                return ok
             else:
-                return self.engine.move((sf, sr), (df, dr))
+                ok = self.engine.move((sf, sr), (df, dr))
+                try:
+                    self._last_move_str = f"from({sf},{sr})->({df},{dr})"
+                except Exception:
+                    pass
+                return ok
 
         if mt == chess_ext.MoveType.ADD:
             pt = pgn.getPieceType()
@@ -62,11 +74,21 @@ class MinimaxBot:
             if not sym:
                 return False
             f, r = pgn.getFromSquare()
-            return self.engine.drop(sym, f, r)
+            ok = self.engine.drop(sym, f, r)
+            try:
+                self._last_move_str = f"ADD {sym} at({f},{r})"
+            except Exception:
+                pass
+            return ok
 
         if mt == chess_ext.MoveType.SUCCESION:
             f, r = pgn.getFromSquare()
-            return self.engine.succession(f, r)
+            ok = self.engine.succession(f, r)
+            try:
+                self._last_move_str = f"SUCESSION at({f},{r})"
+            except Exception:
+                pass
+            return ok
 
         return False
 
