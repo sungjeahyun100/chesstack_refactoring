@@ -63,9 +63,8 @@ class ChessEngineAdapter:
         self._board = chess_ext.ChessBoard()
         self._turn_color = "white"  # white starts
         self._last_move: Optional[Tuple[Tuple[int, int], Tuple[int, int]]] = None
-        # 한 턴에 한 기물만 여러 번 이동 가능, 비-이동 행동은 턴을 소모
+        # 한 턴에 한 행동만 허용 (이동/비이동 포함)
         self._turn_action_locked: bool = False
-        self._turn_moving_piece_pos: Optional[Tuple[int, int]] = None
         
 
     @property
@@ -126,7 +125,6 @@ class ChessEngineAdapter:
             "position": self._board.getPosition(),
             "turn_color": self._turn_color,
             "turn_action_locked": self._turn_action_locked,
-            "turn_moving_piece_pos": self._turn_moving_piece_pos,
             "last_move": self._last_move,
         }
 
@@ -135,7 +133,6 @@ class ChessEngineAdapter:
         self._board.setPosition(snap["position"])
         self._turn_color = snap["turn_color"]
         self._turn_action_locked = snap["turn_action_locked"]
-        self._turn_moving_piece_pos = snap["turn_moving_piece_pos"]
         self._last_move = snap["last_move"]
 
     def owned_piece_at(self, file: int, rank: int) -> bool:
@@ -162,7 +159,9 @@ class ChessEngineAdapter:
         except Exception:
             return []
         
-        pgns = self._board.calcLegalMovesInOnePiece(file, rank)
+        # new binding signature: calcLegalMovesInOnePiece(ColorType, file, rank, include_hidden:boolean)
+        piece = self._board(file, rank)
+        pgns = self._board.calcLegalMovesInOnePiece(piece.getColor(), file, rank, False)
         targets = []
         for pgn in pgns:
             to_square = pgn.getToSquare()
@@ -218,17 +217,14 @@ class ChessEngineAdapter:
         기물 이동 시도
         반환: 성공 여부
         """
-        # 비-이동 행동을 수행했다면 이동 불가
+        # 이번 턴에 이미 행동을 수행했다면 추가 행동 불가
         if self._turn_action_locked:
-            return False
-        # 이미 이번 턴에 이동 중인 기물이 있다면 그 기물만 계속 이동 가능
-        if self._turn_moving_piece_pos is not None and src != self._turn_moving_piece_pos:
             return False
         sf, sr = src
         df, dr = dst
         try:
             # 합법적 이동 PGN 중에서 목적지가 일치하는 것 찾기
-            legal_pgns = self._board.calcLegalMovesInOnePiece(sf, sr)
+            legal_pgns = self._board.calcLegalMovesInOnePiece(self._board(sf, sr).getColor(), sf, sr, False)
             matching_pgn = None
             for pgn in legal_pgns:
                 to_sq = pgn.getToSquare()
@@ -269,13 +265,12 @@ class ChessEngineAdapter:
             except Exception:
                 pass
             self._last_move = (src, dst)
-            # 이번 턴 이동 중인 기물 위치 갱신
-            self._turn_moving_piece_pos = (df, dr)
+            # 한 턴에 한 행동만 허용하므로 턴을 잠금
+            self._turn_action_locked = True
             return True
         except Exception:
             # 외부 예외 발생 시에도 _turn_action_locked 리셋
             self._turn_action_locked = False
-            return False
             return False
 
     def promotion_options(self, src: Tuple[int, int], dst: Tuple[int, int]) -> List[str]:
@@ -286,7 +281,7 @@ class ChessEngineAdapter:
         df, dr = dst
         options: List[str] = []
         try:
-            legal_pgns = self._board.calcLegalMovesInOnePiece(sf, sr)
+            legal_pgns = self._board.calcLegalMovesInOnePiece(self._board(sf, sr).getColor(), sf, sr, False)
             for pgn in legal_pgns:
                 to_sq = pgn.getToSquare()
                 to_f, to_r = to_sq
@@ -309,8 +304,6 @@ class ChessEngineAdapter:
         선택한 승격 기물로 프로모션 이동 실행.
         """
         if self._turn_action_locked:
-            return False
-        if self._turn_moving_piece_pos is not None and src != self._turn_moving_piece_pos:
             return False
         sf, sr = src
         df, dr = dst
@@ -374,7 +367,8 @@ class ChessEngineAdapter:
             except Exception:
                 pass
             self._last_move = (src, dst)
-            self._turn_moving_piece_pos = (df, dr)
+            # 프로모션도 한 행동으로 처리하여 턴을 잠금
+            self._turn_action_locked = True
             return True
         except Exception:
             # 외부 예외 발생 시에도 _turn_action_locked 리셋
@@ -386,8 +380,8 @@ class ChessEngineAdapter:
         포켓에서 기물 드롭
         piece_type_str: "P", "N", "K" 등
         """
-        # 이번 턴에 이동이 시작되었거나 비-이동 행동을 이미 했으면 불가
-        if self._turn_action_locked or self._turn_moving_piece_pos is not None:
+        # 이번 턴에 이미 행동을 수행했다면 불가
+        if self._turn_action_locked:
             return False
         pt = STR_TO_PIECE_TYPE.get(piece_type_str)
         if pt is None:
@@ -414,7 +408,7 @@ class ChessEngineAdapter:
         """
         해당 위치 기물에 스턴 추가
         """
-        if self._turn_action_locked or self._turn_moving_piece_pos is not None:
+        if self._turn_action_locked:
             return False
         try:
             p = self._board(file, rank)
@@ -431,7 +425,7 @@ class ChessEngineAdapter:
         해당 위치 기물을 왕위 계승 (로얄로 만들기)
         반환: 성공 여부
         """
-        if self._turn_action_locked or self._turn_moving_piece_pos is not None:
+        if self._turn_action_locked:
             return False
         try:
             p = self._board(file, rank)

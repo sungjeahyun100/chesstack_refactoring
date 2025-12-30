@@ -38,8 +38,8 @@ PIECE_GLYPH = {
 
 class UIState:
     def __init__(self):
-        self.mode = "move"
-        self.drop_kind = "P"
+        self.mode = "drop"
+        self.drop_kind = "K"
         self.selected: Optional[Tuple[int,int]] = None
         self.targets: List[Tuple[int,int]] = []
         self.last_move: Optional[Tuple[Tuple[int,int], Tuple[int,int]]] = None
@@ -139,6 +139,10 @@ def draw(engine, ui: UIState, screen, font, info_font):
     # Status
     surf = info_font.render(f"Status: {ui.status}", True, PANEL_TEXT)
     screen.blit(surf, (BOARD_PX + 10, y)); y += 20
+    # If the engine has already used its action this turn, show hint
+    if getattr(engine, '_turn_action_locked', False):
+        surf = info_font.render("Action used: press END TURN", True, (220, 120, 80))
+        screen.blit(surf, (BOARD_PX + 10, y)); y += 20
     # Debug
     surf = info_font.render(f"Debug: {'ON' if ui.debug else 'OFF'}", True, PANEL_TEXT)
     screen.blit(surf, (BOARD_PX + 10, y)); y += 20
@@ -456,6 +460,7 @@ def main(engine):
                 # 봇 행동 시도
                 if bot.get_best_move():
                     ui.status = f"Bot ({ui.bot_color}/{ui.bot_type}) moved"
+                    engine.end_turn()
                 else:
                     ui.status = f"Bot ({ui.bot_color}) has no moves"
                     engine.end_turn()
