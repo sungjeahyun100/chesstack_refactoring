@@ -162,7 +162,11 @@ class ChessEngineAdapter:
         except Exception:
             return []
         
-        pgns = self._board.calcLegalMovesInOnePiece(file, rank)
+        try:
+            mover_color = piece.getColor()
+        except Exception:
+            return []
+        pgns = self._board.calcLegalMovesInOnePiece(mover_color, file, rank, False)
         targets = []
         for pgn in pgns:
             to_square = pgn.getToSquare()
@@ -228,7 +232,11 @@ class ChessEngineAdapter:
         df, dr = dst
         try:
             # 합법적 이동 PGN 중에서 목적지가 일치하는 것 찾기
-            legal_pgns = self._board.calcLegalMovesInOnePiece(sf, sr)
+            try:
+                mover_color = self._board(sf, sr).getColor()
+            except Exception:
+                return False
+            legal_pgns = self._board.calcLegalMovesInOnePiece(mover_color, sf, sr, False)
             matching_pgn = None
             for pgn in legal_pgns:
                 to_sq = pgn.getToSquare()
@@ -276,7 +284,6 @@ class ChessEngineAdapter:
             # 외부 예외 발생 시에도 _turn_action_locked 리셋
             self._turn_action_locked = False
             return False
-            return False
 
     def promotion_options(self, src: Tuple[int, int], dst: Tuple[int, int]) -> List[str]:
         """
@@ -286,7 +293,11 @@ class ChessEngineAdapter:
         df, dr = dst
         options: List[str] = []
         try:
-            legal_pgns = self._board.calcLegalMovesInOnePiece(sf, sr)
+            try:
+                mover_color = self._board(sf, sr).getColor()
+            except Exception:
+                return []
+            legal_pgns = self._board.calcLegalMovesInOnePiece(mover_color, sf, sr, False)
             for pgn in legal_pgns:
                 to_sq = pgn.getToSquare()
                 to_f, to_r = to_sq
@@ -338,7 +349,11 @@ class ChessEngineAdapter:
             except Exception:
                 pass
             # 해당 승격 PGN 선택
-            legal_pgns = self._board.calcLegalMovesInOnePiece(sf, sr)
+            try:
+                mover_color = self._board(sf, sr).getColor()
+            except Exception:
+                return False
+            legal_pgns = self._board.calcLegalMovesInOnePiece(mover_color, sf, sr, False)
             chosen = None
             mover_color_type = self._board(sf, sr).getColor()
             
@@ -455,6 +470,8 @@ class ChessEngineAdapter:
 
     def end_turn(self):
         """턴 종료, 색상 교체"""
+        if self._turn_action_locked is False:
+            return
         for f in range(8):
             for r in range(8):
                 p = self._board(f, r)

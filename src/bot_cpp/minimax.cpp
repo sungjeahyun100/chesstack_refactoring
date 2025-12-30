@@ -260,11 +260,15 @@ namespace agent{
         auto pT = m.getPieceType();
         auto cT = m.getColorType();
 
-        // flip side: xor out current side and xor in opponent
+        // flip side: remove current side constant and add opponent side constant
         int curSide = (player == colorType::WHITE) ? 0 : 1;
         int oppSide = (player == colorType::WHITE) ? 1 : 0;
-        h ^= zobrist_side[curSide];
-        h ^= zobrist_side[oppSide];
+        h ^= zobrist_side[curSide]; // remove current
+        h ^= zobrist_side[oppSide]; // add opponent
+
+        // snapshot pockets for potential capture handling
+        const auto &wp_before = b.getWhitePocket();
+        const auto &bp_before = b.getBlackPocket();
 
         if(mT == moveType::MOVE || mT == moveType::PROMOTE){
             // attacker at from
@@ -273,7 +277,36 @@ namespace agent{
 
             // victim at to (if any) -- may be empty
             const piece &vict = b.at(to.first, to.second);
-            if(!vict.isEmpty()) xor_piece_slot(h, zobrist_pieces, to.first, to.second, vict); // remove victim
+            if(!vict.isEmpty()) {
+                xor_piece_slot(h, zobrist_pieces, to.first, to.second, vict); // remove victim
+                // if victim will be captured, the capturer's pocket increases by 1 -> update pocket hash
+                pieceType vpt = vict.getPieceType();
+                if(vpt != pieceType::NONE){
+                    if(player == colorType::WHITE){
+                        int oldc = wp_before[static_cast<int>(vpt)];
+                        if(oldc < MAX_POCKET_COUNT){
+                            size_t idx = (0 * NUMBER_OF_PIECEKIND + static_cast<int>(vpt)) * MAX_POCKET_COUNT + oldc;
+                            if(idx < zobrist_pockets.size()) h ^= zobrist_pockets[idx];
+                        }
+                        int newc = std::min(MAX_POCKET_COUNT-1, oldc + 1);
+                        if(newc < MAX_POCKET_COUNT){
+                            size_t idx = (0 * NUMBER_OF_PIECEKIND + static_cast<int>(vpt)) * MAX_POCKET_COUNT + newc;
+                            if(idx < zobrist_pockets.size()) h ^= zobrist_pockets[idx];
+                        }
+                    } else {
+                        int oldc = bp_before[static_cast<int>(vpt)];
+                        if(oldc < MAX_POCKET_COUNT){
+                            size_t idx = (1 * NUMBER_OF_PIECEKIND + static_cast<int>(vpt)) * MAX_POCKET_COUNT + oldc;
+                            if(idx < zobrist_pockets.size()) h ^= zobrist_pockets[idx];
+                        }
+                        int newc = std::min(MAX_POCKET_COUNT-1, oldc + 1);
+                        if(newc < MAX_POCKET_COUNT){
+                            size_t idx = (1 * NUMBER_OF_PIECEKIND + static_cast<int>(vpt)) * MAX_POCKET_COUNT + newc;
+                            if(idx < zobrist_pockets.size()) h ^= zobrist_pockets[idx];
+                        }
+                    }
+                }
+            }
 
             // insert attacker at to (if promotion, use promoted type)
             if(mT == moveType::PROMOTE){
@@ -428,10 +461,16 @@ namespace agent{
                     if(m.getColorType() == player) res.push_back(m);
                 }
 
-                // 계승: 이미 Royal이면 제외
-                if(simulate_board.at(f, r).getIsRoyal()) continue;
-                res.push_back(PGN(player, f, r, moveType::SUCCESION)); //계승
+                // 계승: 법적 계승 수만 추가 (calcLegalSuccesion 사용)
+                // we will collect legal succesion PGNs below instead
+                (void)0;
             }
+        }
+
+        // collect legal succesion PGNs and append those matching player
+        auto succs = simulate_board.calcLegalSuccesion(player);
+        for(const auto &pgn : succs){
+            if(pgn.getColorType() == player) res.push_back(pgn);
         }
 
         return res;
@@ -443,8 +482,8 @@ namespace agent{
         if (depth == 0) return quiescence(alpha, beta, 0, player);
 
         // Transposition table lookup
-        auto pos_now = simulate_board.getPosition();
-        uint64_t h = compute_zobrist(pos_now) ^ zobrist_side[(player == colorType::WHITE) ? 0 : 1];
+        // use the incremental current_zobrist which is kept in sync by update_zobrist_for_move
+        uint64_t h = current_zobrist;
         int original_alpha = alpha;
         int original_beta = beta;
         {
@@ -521,12 +560,44 @@ namespace agent{
             best = std::numeric_limits<int>::min();
             for (auto &mv : moves) {
                 std::vector<PGN> child_pv;
-                // update hash incrementally, apply move, recurse, then undo + revert hash
+                // update hash incrementally, apply move
                 update_zobrist_for_move(current_zobrist, mv, simulate_board, player);
                 simulate_board.updatePiece(mv);
-                int score = minimax_search(depth - 1, (player == colorType::WHITE ? colorType::BLACK : colorType::WHITE), alpha, beta, ply+1, child_pv);
-                simulate_board.undoBoard();
-                update_zobrist_for_move(current_zobrist, mv, simulate_board, player); // revert
+                // check royals after move: opponent or self may have lost their last royal
+                colorType other = (player == colorType::WHITE ? colorType::BLACK : colorType::WHITE);
+                bool opp_has_royal = false;
+                bool self_has_royal = false;
+                {
+                    auto pos_after = simulate_board.getPosition();
+                    for(int ff=0; ff<BOARDSIZE; ++ff){
+                        for(int rr=0; rr<BOARDSIZE; ++rr){
+                            const piece &pp = pos_after.board[ff][rr];
+                            if(pp.getPieceType() == pieceType::NONE) continue;
+                            if(pp.getIsRoyal()){
+                                if(pp.getColor() == other) opp_has_royal = true;
+                                if(pp.getColor() == player) self_has_royal = true;
+                            }
+                        }
+                    }
+                }
+                int score;
+                if(!self_has_royal){
+                    // mover lost their last royal -> immediate loss for mover
+                    score = (player == cT) ? (-MATE_SCORE + ply) : (MATE_SCORE - ply);
+                    simulate_board.undoBoard();
+                    update_zobrist_for_move(current_zobrist, mv, simulate_board, player); // revert
+                } else if(!opp_has_royal){
+                    // opponent has no royals -> mate for the side who just moved
+                    score = (player == cT) ? (MATE_SCORE - ply) : (-MATE_SCORE + ply);
+                    // undo and revert hash
+                    simulate_board.undoBoard();
+                    update_zobrist_for_move(current_zobrist, mv, simulate_board, player); // revert
+                } else {
+                    // recurse
+                    score = minimax_search(depth - 1, (player == colorType::WHITE ? colorType::BLACK : colorType::WHITE), alpha, beta, ply+1, child_pv);
+                    simulate_board.undoBoard();
+                    update_zobrist_for_move(current_zobrist, mv, simulate_board, player); // revert
+                }
                 if (score > best) {
                     best = score;
                     best_move = mv;
@@ -546,9 +617,37 @@ namespace agent{
                 std::vector<PGN> child_pv;
                 update_zobrist_for_move(current_zobrist, mv, simulate_board, player);
                 simulate_board.updatePiece(mv);
-                int score = minimax_search(depth - 1, (player == colorType::WHITE ? colorType::BLACK : colorType::WHITE), alpha, beta, ply+1, child_pv);
-                simulate_board.undoBoard();
-                update_zobrist_for_move(current_zobrist, mv, simulate_board, player);
+                // check royals after move for immediate loss/win
+                colorType other = (player == colorType::WHITE ? colorType::BLACK : colorType::WHITE);
+                bool opp_has_royal = false;
+                bool self_has_royal = false;
+                {
+                    auto pos_after = simulate_board.getPosition();
+                    for(int ff=0; ff<BOARDSIZE; ++ff){
+                        for(int rr=0; rr<BOARDSIZE; ++rr){
+                            const piece &pp = pos_after.board[ff][rr];
+                            if(pp.getPieceType() == pieceType::NONE) continue;
+                            if(pp.getIsRoyal()){
+                                if(pp.getColor() == other) opp_has_royal = true;
+                                if(pp.getColor() == player) self_has_royal = true;
+                            }
+                        }
+                    }
+                }
+                int score;
+                if(!self_has_royal){
+                    score = (player == cT) ? (-MATE_SCORE + ply) : (MATE_SCORE - ply);
+                    simulate_board.undoBoard();
+                    update_zobrist_for_move(current_zobrist, mv, simulate_board, player);
+                } else if(!opp_has_royal){
+                    score = (player == cT) ? (MATE_SCORE - ply) : (-MATE_SCORE + ply);
+                    simulate_board.undoBoard();
+                    update_zobrist_for_move(current_zobrist, mv, simulate_board, player);
+                } else {
+                    score = minimax_search(depth - 1, (player == colorType::WHITE ? colorType::BLACK : colorType::WHITE), alpha, beta, ply+1, child_pv);
+                    simulate_board.undoBoard();
+                    update_zobrist_for_move(current_zobrist, mv, simulate_board, player);
+                }
                 if (score < best) {
                     best = score;
                     best_move = mv;
@@ -596,7 +695,7 @@ namespace agent{
                 const piece &p = simulate_board.at(f, r);
                 if(p.getPieceType() == pieceType::NONE) continue;
                 if(p.getColor() != player) continue;
-                auto moves = simulate_board.calcLegalMovesInOnePiece(player, f, r, true); // 잠재적 이동(포텐셜) 계산
+                    auto moves = simulate_board.calcLegalMovesInOnePiece(player, f, r, false); // 이동 & 승격 (합법수만)
                 for(const auto &m : moves){
                     // 대상 칸이 상대 기물로 점유되어 캡처가 되는 수 혹은 승격 수를 포함
                     auto to = m.getToSquare();
@@ -652,11 +751,43 @@ namespace agent{
 
         if(maximizing){
             for(const auto &mv : moves){
+                // update zobrist + apply move
+                update_zobrist_for_move(current_zobrist, mv, simulate_board, player);
                 simulate_board.updatePiece(mv);
-                int score = quiescence(alpha, beta, ply_depth+1, other);
-                simulate_board.setPosition(base);
+                // check mate by last-royal capture or self-loss
+                colorType other_local = (player == colorType::WHITE ? colorType::BLACK : colorType::WHITE);
+                bool opp_has_royal_local = false;
+                bool self_has_royal_local = false;
+                {
+                    auto pos_after = simulate_board.getPosition();
+                    for(int ff=0; ff<BOARDSIZE; ++ff){
+                        for(int rr=0; rr<BOARDSIZE; ++rr){
+                            const piece &pp = pos_after.board[ff][rr];
+                            if(pp.getPieceType() == pieceType::NONE) continue;
+                            if(pp.getIsRoyal()){
+                                if(pp.getColor() == other_local) opp_has_royal_local = true;
+                                if(pp.getColor() == player) self_has_royal_local = true;
+                            }
+                        }
+                    }
+                }
+                int score_q;
+                if(!self_has_royal_local){
+                    score_q = (player == cT) ? (-MATE_SCORE + ply_depth) : (MATE_SCORE - ply_depth);
+                    simulate_board.undoBoard();
+                    update_zobrist_for_move(current_zobrist, mv, simulate_board, player);
+                } else if(!opp_has_royal_local){
+                    score_q = (player == cT) ? (MATE_SCORE - ply_depth) : (-MATE_SCORE + ply_depth);
+                    simulate_board.undoBoard();
+                    update_zobrist_for_move(current_zobrist, mv, simulate_board, player);
+                } else {
+                    score_q = quiescence(alpha, beta, ply_depth+1, other);
+                    // undo
+                    simulate_board.undoBoard();
+                    update_zobrist_for_move(current_zobrist, mv, simulate_board, player);
+                }
 
-                if(score > alpha) alpha = score;
+                if(score_q > alpha) alpha = score_q;
                 if(alpha >= beta){
                     record_killer(ply_depth, mv);
                     record_history(mv, ply_depth);
@@ -666,11 +797,40 @@ namespace agent{
             return alpha;
         } else {
             for(const auto &mv : moves){
+                update_zobrist_for_move(current_zobrist, mv, simulate_board, player);
                 simulate_board.updatePiece(mv);
-                int score = quiescence(alpha, beta, ply_depth+1, other);
-                simulate_board.setPosition(base);
+                colorType other_local = (player == colorType::WHITE ? colorType::BLACK : colorType::WHITE);
+                bool opp_has_royal_local = false;
+                bool self_has_royal_local = false;
+                {
+                    auto pos_after = simulate_board.getPosition();
+                    for(int ff=0; ff<BOARDSIZE; ++ff){
+                        for(int rr=0; rr<BOARDSIZE; ++rr){
+                            const piece &pp = pos_after.board[ff][rr];
+                            if(pp.getPieceType() == pieceType::NONE) continue;
+                            if(pp.getIsRoyal()){
+                                if(pp.getColor() == other_local) opp_has_royal_local = true;
+                                if(pp.getColor() == player) self_has_royal_local = true;
+                            }
+                        }
+                    }
+                }
+                int score_q;
+                if(!self_has_royal_local){
+                    score_q = (player == cT) ? (-MATE_SCORE + ply_depth) : (MATE_SCORE - ply_depth);
+                    simulate_board.undoBoard();
+                    update_zobrist_for_move(current_zobrist, mv, simulate_board, player);
+                } else if(!opp_has_royal_local){
+                    score_q = (player == cT) ? (MATE_SCORE - ply_depth) : (-MATE_SCORE + ply_depth);
+                    simulate_board.undoBoard();
+                    update_zobrist_for_move(current_zobrist, mv, simulate_board, player);
+                } else {
+                    score_q = quiescence(alpha, beta, ply_depth+1, other);
+                    simulate_board.undoBoard();
+                    update_zobrist_for_move(current_zobrist, mv, simulate_board, player);
+                }
 
-                if(score < beta) beta = score;
+                if(score_q < beta) beta = score_q;
                 if(alpha >= beta){
                     record_killer(ply_depth, mv);
                     record_history(mv, ply_depth);
@@ -692,6 +852,9 @@ namespace agent{
         } else {
             if(curr_pos.turn_right != cT) return PGN();
         }
+
+        // initialize incremental zobrist (includes side-to-move constant for the root player)
+        current_zobrist = compute_zobrist(simulate_board.getPosition()) ^ zobrist_side[(cT == colorType::WHITE) ? 0 : 1];
 
         if(!iterative_deepening){
             // 단발 검색(한 번에 전체 깊이 탐색)
@@ -743,6 +906,9 @@ namespace agent{
         } else {
             if(curr_pos.turn_right != cT) return curr_pos.log;
         }
+
+        // initialize zobrist for PV generation
+        current_zobrist = compute_zobrist(simulate_board.getPosition()) ^ zobrist_side[(cT == colorType::WHITE) ? 0 : 1];
 
         if(!iterative_deepening){
             (void)minimax_search(depth, cT, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), 0, pv);

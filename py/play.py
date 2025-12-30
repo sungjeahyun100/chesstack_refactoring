@@ -38,8 +38,8 @@ PIECE_GLYPH = {
 
 class UIState:
     def __init__(self):
-        self.mode = "move"
-        self.drop_kind = "P"
+        self.mode = "drop"
+        self.drop_kind = "K"
         self.selected: Optional[Tuple[int,int]] = None
         self.targets: List[Tuple[int,int]] = []
         self.last_move: Optional[Tuple[Tuple[int,int], Tuple[int,int]]] = None
@@ -58,7 +58,10 @@ class UIState:
         self.bot_color: str = "black"   # 봇이 조종할 색 ("white" 또는 "black")
         self.bot_type: str = "my_propose" # 봇 타입 
         self.bot_last_move_time: float = 0
-        self.bot_move_delay: float = 0.8  # 봇이 행동하기까지 대기 시간 (초)
+        # track which side the bot has already acted for this turn
+        self.bot_acted_turn: Optional[str] = None
+        # separate display string for last bot move (shown in its own panel area)
+        self.bot_move_str: Optional[str] = None
 
 def board_from_mouse(pos: Tuple[int,int]) -> Optional[Tuple[int,int]]:
     mx, my = pos
@@ -194,6 +197,12 @@ def draw(engine, ui: UIState, screen, font, info_font):
         bot_text = "Bot: disabled"
         surf = info_font.render(bot_text, True, (100, 100, 100))
     screen.blit(surf, (BOARD_PX + 10, y))
+    y += 20
+    # Bot last-move display (separate from status)
+    if ui.bot_move_str:
+        surf = info_font.render(f"Bot Move: {ui.bot_move_str}", True, (200, 200, 150))
+        screen.blit(surf, (BOARD_PX + 10, y))
+        y += 20
 
     # buttons
     pygame.draw.rect(screen, (50,100,50), end_btn)
@@ -450,18 +459,24 @@ def main(engine):
                         ui.status = "Stun" if ok else "Stun failed"
         
         # 봇 턴 처리
+        # Bot: act immediately when it's the bot's turn; act only once per turn
         if ui.bot_enabled and engine.turn == ui.bot_color:
-            current_time = time.time()
-            if current_time - ui.bot_last_move_time >= ui.bot_move_delay:
-                # 봇 행동 시도
-                if bot.get_best_move():
-                    ui.status = f"Bot ({ui.bot_color}/{ui.bot_type}) moved"
+            if ui.bot_acted_turn != engine.turn:
+                moved = bot.get_best_move()
+                # prefer adapter-provided standardized move string (set by bot wrapper on engine)
+                mvstr = bot._last_move_str 
+                if moved:
+                    ui.bot_move_str = mvstr if mvstr else f"({ui.bot_color}/{ui.bot_type}) moved"
                 else:
-                    ui.status = f"Bot ({ui.bot_color}) has no moves"
-                    engine.end_turn()
-                ui.bot_last_move_time = current_time
+                    ui.bot_move_str = None
+                # end the turn only after the bot call returns
+                engine.end_turn()
                 ui.selected = None
                 ui.targets = []
+                ui.bot_acted_turn = engine.turn
+        else:
+            # reset act flag when it's not the bot's turn
+            ui.bot_acted_turn = None
 
         screen.fill((0,0,0))
         dbg_btn, end_btn = draw(engine, ui, screen, font, info_font)

@@ -394,10 +394,7 @@ void chessboard::updatePiece(PGN pgn)
         }
     }
 
-    if(!isLegal) {
-        std::cout << "that pgn is illegal." << std::endl;
-        return;
-    }
+    if(!isLegal) throw std::runtime_error("illegal pgn");
 
     // 스냅샷 저장 (undo를 위해 현재 상태를 position으로 저장)
     snapshots.push_back(getPosition());
