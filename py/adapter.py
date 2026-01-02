@@ -463,8 +463,6 @@ class ChessEngineAdapter:
 
     def end_turn(self):
         """턴 종료, 색상 교체"""
-        if self._turn_action_locked is False:
-            return
         for f in range(8):
             for r in range(8):
                 p = self._board(f, r)

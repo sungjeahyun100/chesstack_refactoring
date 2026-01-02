@@ -104,6 +104,14 @@ class MinimaxBot:
         except Exception:
             return []
 
+    def get_calc_info(self, depth: int = 0):
+        """Return CalcInfo from the underlying C++ bot."""
+        d = int(self.depth if depth is None or depth == 0 else depth)
+        try:
+            return self._bot.getCalcInfo(self.engine._board, d)
+        except Exception:
+            return None
+
 
 class MinimaxGPTBot(MinimaxBot):
     """Wrapper that uses the GPT-proposed minimax implementation."""

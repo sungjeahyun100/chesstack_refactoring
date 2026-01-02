@@ -167,6 +167,10 @@ minimax_GPTproposed::minimax_GPTproposed(colorType ct) : impl(std::make_unique<I
 minimax_GPTproposed::minimax_GPTproposed() : impl(std::make_unique<Impl>()){}
 minimax_GPTproposed::~minimax_GPTproposed() = default;
 
+void minimax_GPTproposed::setFollowTurn(bool v){
+    impl->mptr->setFollowTurn(v);
+}
+
 int minimax_GPTproposed::eval_pos(const position& pos) const {
     return impl->mptr->eval_pos(pos);
 }
@@ -178,6 +182,11 @@ PGN minimax_GPTproposed::getBestMove(position curr_pos, int depth) {
 std::vector<PGN> minimax_GPTproposed::getBestLine(position curr_pos, int depth)
 {
     return impl->mptr->getBestLine(curr_pos, depth);
+}
+
+calcInfo minimax_GPTproposed::getCalcInfo(position curr_pos, int depth)
+{
+    return impl->mptr->getCalcInfo(curr_pos, depth);
 }
 
 // Forwarding control/inspection helpers

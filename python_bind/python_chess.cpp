@@ -180,6 +180,13 @@ PYBIND11_MODULE(chess_ext, m) {
 
 	// helper: expose pair<int,int> conversion automatically via stl
 
+	// calcInfo (minimax aggregate result)
+	py::class_<agent::calcInfo>(m, "CalcInfo")
+		.def(py::init<>())
+		.def_readwrite("eval_val", &agent::calcInfo::eval_val)
+		.def_readwrite("line", &agent::calcInfo::line)
+		.def_readwrite("bestMove", &agent::calcInfo::bestMove);
+
 	// Bot bindings
 	py::class_<agent::minimax>(m, "Minimax")
 		.def(py::init<>())
@@ -194,11 +201,13 @@ PYBIND11_MODULE(chess_ext, m) {
 		.def("getNodesSearched", &agent::minimax::getNodesSearched)
 		.def("eval_pos", &agent::minimax::eval_pos)
 		.def("getBestMove", [](agent::minimax &bot, const chessboard &b, int depth){ position pos = b.getPosition(); return bot.getBestMove(pos, depth); })
-		.def("getBestLine", [](agent::minimax &bot, const chessboard &b, int depth){ position pos = b.getPosition(); return bot.getBestLine(pos, depth); });
+		.def("getBestLine", [](agent::minimax &bot, const chessboard &b, int depth){ position pos = b.getPosition(); return bot.getBestLine(pos, depth); })
+		.def("getCalcInfo", [](agent::minimax &bot, const chessboard &b, int depth){ position pos = b.getPosition(); return bot.getCalcInfo(pos, depth); });
 
 	py::class_<agent::minimax_GPTproposed>(m, "MinimaxGPT")
 		.def(py::init<>())
 		.def(py::init<colorType>())
+		.def("setFollowTurn", &agent::minimax_GPTproposed::setFollowTurn)
 		.def("setPlacementSample", &agent::minimax_GPTproposed::setPlacementSample)
 		.def("reset_search_data", &agent::minimax_GPTproposed::reset_search_data)
 		.def("setIterativeDeepening", &agent::minimax_GPTproposed::setIterativeDeepening)
@@ -208,6 +217,7 @@ PYBIND11_MODULE(chess_ext, m) {
 		.def("getNodesSearched", &agent::minimax_GPTproposed::getNodesSearched)
 		.def("eval_pos", &agent::minimax_GPTproposed::eval_pos)
 		.def("getBestMove", [](agent::minimax_GPTproposed &bot, const chessboard &b, int depth){ position pos = b.getPosition(); return bot.getBestMove(pos, depth); })
-		.def("getBestLine", [](agent::minimax_GPTproposed &bot, const chessboard &b, int depth){ position pos = b.getPosition(); return bot.getBestLine(pos, depth); });
+		.def("getBestLine", [](agent::minimax_GPTproposed &bot, const chessboard &b, int depth){ position pos = b.getPosition(); return bot.getBestLine(pos, depth); })
+		.def("getCalcInfo", [](agent::minimax_GPTproposed &bot, const chessboard &b, int depth){ position pos = b.getPosition(); return bot.getCalcInfo(pos, depth); });
 
 }

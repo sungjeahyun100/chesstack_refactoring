@@ -6,11 +6,21 @@
 #include <memory>
 
 namespace agent{
+
+    struct calcInfo
+    {
+        int eval_val = 0;
+        std::vector<PGN> line;
+        PGN bestMove;
+    };
+    
+
     class bot{ //인터페이스
         public:
             virtual int eval_pos(const position& pos) const = 0; //평가 함수, -값이면 흑이 좋고, +값이면 백이 좋은 포지션
             virtual PGN getBestMove(position curr_pos, int depth) = 0; //최선수 찾기
             virtual std::vector<PGN> getBestLine(position curr_pos, int depth) = 0; //최선의 라인 찾기
+            virtual calcInfo getCalcInfo(position curr_pos, int depth) = 0; //최선수, 최선 라인, 평가치 전부 반환하는 종합 함수
     };
 
     class minimax : public bot{
@@ -139,6 +149,7 @@ namespace agent{
             virtual int eval_pos(const position& pos) const override;
             virtual PGN getBestMove(position curr_pos, int depth) override;
             virtual std::vector<PGN> getBestLine(position curr_pos, int depth) override;
+            virtual calcInfo getCalcInfo(position curr_pos, int depth) override;
     };
 
     // Alternative minimax bot that uses the GPT-proposed evaluation function.
@@ -149,9 +160,11 @@ namespace agent{
         minimax_GPTproposed(colorType ct);
         minimax_GPTproposed();
         virtual ~minimax_GPTproposed();
+        void setFollowTurn(bool v);
         virtual int eval_pos(const position& pos) const override; // delegates to internal impl
         virtual PGN getBestMove(position curr_pos, int depth) override; // delegates to internal impl
         virtual std::vector<PGN> getBestLine(position curr_pos, int depth) override;
+        virtual calcInfo getCalcInfo(position curr_pos, int depth) override;
         // Control/inspection helpers forwarded to internal minimax implementation
         void setPlacementSample(size_t k);
         void reset_search_data();

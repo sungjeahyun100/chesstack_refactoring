@@ -142,6 +142,63 @@ def demo_bot():
 		print('\nBot did not play a move (no legal moves or not its turn).')
 
 
+def _pgn_to_human(mv):
+	"""Small helper to print a PGN in a readable way."""
+	mt = mv.getMoveType()
+	if mt == chess_ext.MoveType.MOVE or mt == chess_ext.MoveType.PROMOTE:
+		sf, sr = mv.getFromSquare()
+		df, dr = mv.getToSquare()
+		return f"{idx_to_alg(sf,sr)}->{idx_to_alg(df,dr)}"
+	if mt == chess_ext.MoveType.ADD:
+		pt = mv.getPieceType()
+		f, r = mv.getFromSquare()
+		return f"ADD {pt} @ {idx_to_alg(f,r)}"
+	if mt == chess_ext.MoveType.SUCCESION:
+		f, r = mv.getFromSquare()
+		return f"SUCCESION @ {idx_to_alg(f,r)}"
+	return repr(mv)
+
+
+def demo_calc_info():
+	"""Demonstrate the aggregate CalcInfo result from C++ minimax."""
+	board = chess_ext.ChessBoard()
+
+	# Minimal legal-ish position: kings + a pawn each
+	board.placePiece(chess_ext.ColorType.WHITE, chess_ext.PieceType.KING, *alg_to_idx('e1'))
+	board.placePiece(chess_ext.ColorType.BLACK, chess_ext.PieceType.KING, *alg_to_idx('e8'))
+	board.placePiece(chess_ext.ColorType.WHITE, chess_ext.PieceType.PWAN, *alg_to_idx('e2'))
+	board.placePiece(chess_ext.ColorType.BLACK, chess_ext.PieceType.PWAN, *alg_to_idx('e7'))
+
+	print('\nBoard for getCalcInfo():')
+	board.displayBoard()
+
+	depth = 4
+
+	bot = chess_ext.Minimax(chess_ext.ColorType.WHITE)
+	bot.setFollowTurn(True)
+	info = bot.getCalcInfo(board, depth)
+	print(f"\n[Minimax] eval_val={info.eval_val} bestMove={_pgn_to_human(info.bestMove)}")
+	if info.line:
+		print('[Minimax] PV:')
+		for i, mv in enumerate(info.line, start=1):
+			print(f"  {i}. {_pgn_to_human(mv)}")
+	else:
+		print('[Minimax] PV is empty')
+
+	bot2 = chess_ext.MinimaxGPT(chess_ext.ColorType.WHITE)
+	# MinimaxGPT follows its internal minimax impl's follow_turn default (false).
+	# To be robust, keep the turn consistent by using follow-turn behavior on the base minimax only.
+	info2 = bot2.getCalcInfo(board, depth)
+	print(f"\n[MinimaxGPT] eval_val={info2.eval_val} bestMove={_pgn_to_human(info2.bestMove)}")
+	if info2.line:
+		print('[MinimaxGPT] PV:')
+		for i, mv in enumerate(info2.line, start=1):
+			print(f"  {i}. {_pgn_to_human(mv)}")
+	else:
+		print('[MinimaxGPT] PV is empty')
+
+
 if __name__ == '__main__':
 	demo()
 	demo_bot()
+	demo_calc_info()
