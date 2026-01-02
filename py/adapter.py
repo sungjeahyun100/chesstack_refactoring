@@ -63,8 +63,6 @@ class ChessEngineAdapter:
         self._board = chess_ext.ChessBoard()
         self._turn_color = "white"  # white starts
         self._last_move: Optional[Tuple[Tuple[int, int], Tuple[int, int]]] = None
-        # 한 턴에 한 행동만 허용 (이동/비이동 포함)
-        self._turn_action_locked: bool = False
         
 
     @property
@@ -124,7 +122,6 @@ class ChessEngineAdapter:
         return {
             "position": self._board.getPosition(),
             "turn_color": self._turn_color,
-            "turn_action_locked": self._turn_action_locked,
             "last_move": self._last_move,
         }
 
@@ -132,7 +129,6 @@ class ChessEngineAdapter:
         """스냅샷으로 엔진 상태 복원"""
         self._board.setPosition(snap["position"])
         self._turn_color = snap["turn_color"]
-        self._turn_action_locked = snap["turn_action_locked"]
         self._last_move = snap["last_move"]
 
     def owned_piece_at(self, file: int, rank: int) -> bool:
@@ -219,9 +215,6 @@ class ChessEngineAdapter:
         기물 이동 시도
         반환: 성공 여부
         """
-        # 이번 턴에 이미 행동을 수행했다면 추가 행동 불가
-        if self._turn_action_locked:
-            return False
         sf, sr = src
         df, dr = dst
         try:
@@ -258,8 +251,6 @@ class ChessEngineAdapter:
             try:
                 self._board.updatePiece(matching_pgn)
             except Exception:
-                # updatePiece 실패 시 _turn_action_locked 리셋
-                self._turn_action_locked = False
                 return False
             try:
                 moved_piece = self._board(df, dr)
@@ -271,12 +262,8 @@ class ChessEngineAdapter:
             except Exception:
                 pass
             self._last_move = (src, dst)
-            # 한 턴에 한 행동만 허용하므로 턴을 잠금
-            self._turn_action_locked = True
             return True
         except Exception:
-            # 외부 예외 발생 시에도 _turn_action_locked 리셋
-            self._turn_action_locked = False
             return False
 
     def promotion_options(self, src: Tuple[int, int], dst: Tuple[int, int]) -> List[str]:
@@ -313,8 +300,6 @@ class ChessEngineAdapter:
         """
         선택한 승격 기물로 프로모션 이동 실행.
         """
-        if self._turn_action_locked:
-            return False
         sf, sr = src
         df, dr = dst
         pt = STR_TO_PIECE_TYPE.get(piece_type_str)
@@ -366,8 +351,6 @@ class ChessEngineAdapter:
             try:
                 self._board.updatePiece(chosen)
             except Exception:
-                # updatePiece 실패 시 _turn_action_locked 리셋
-                self._turn_action_locked = False
                 return False
             try:
                 promoted_piece = self._board(df, dr)
@@ -381,12 +364,8 @@ class ChessEngineAdapter:
             except Exception:
                 pass
             self._last_move = (src, dst)
-            # 프로모션도 한 행동으로 처리하여 턴을 잠금
-            self._turn_action_locked = True
             return True
         except Exception:
-            # 외부 예외 발생 시에도 _turn_action_locked 리셋
-            self._turn_action_locked = False
             return False
 
     def drop(self, piece_type_str: str, file: int, rank: int) -> bool:
@@ -394,9 +373,6 @@ class ChessEngineAdapter:
         포켓에서 기물 드롭
         piece_type_str: "P", "N", "K" 등
         """
-        # 이번 턴에 이미 행동을 수행했다면 불가
-        if self._turn_action_locked:
-            return False
         pt = STR_TO_PIECE_TYPE.get(piece_type_str)
         if pt is None:
             return False
@@ -407,29 +383,20 @@ class ChessEngineAdapter:
             try:
                 self._board.updatePiece(pgn)
             except Exception:
-                # updatePiece 실패 시 _turn_action_locked 리셋
-                self._turn_action_locked = False
                 return False
-            # 비-이동 행동은 턴을 잠금
-            self._turn_action_locked = True
             return True
         except Exception:
-            # 외부 예외 발생 시에도 _turn_action_locked 리셋
-            self._turn_action_locked = False
             return False
 
     def stun(self, file: int, rank: int) -> bool:
         """
         해당 위치 기물에 스턴 추가
         """
-        if self._turn_action_locked:
-            return False
         try:
             p = self._board(file, rank)
             if p.getPieceType() == chess_ext.PieceType.NONE:
                 return False
             p.addOneStun()
-            self._turn_action_locked = True
             return True
         except Exception:
             return False
@@ -439,8 +406,6 @@ class ChessEngineAdapter:
         해당 위치 기물을 왕위 계승 (로얄로 만들기)
         반환: 성공 여부
         """
-        if self._turn_action_locked:
-            return False
         try:
             p = self._board(file, rank)
             if p.getPieceType() == chess_ext.PieceType.NONE:
@@ -451,14 +416,9 @@ class ChessEngineAdapter:
             try:
                 self._board.updatePiece(pgn)
             except Exception:
-                # updatePiece 실패 시 _turn_action_locked 리셋
-                self._turn_action_locked = False
                 return False
-            self._turn_action_locked = True
             return True
         except Exception:
-            # 외부 예외 발생 시에도 _turn_action_locked 리셋
-            self._turn_action_locked = False
             return False
 
     def end_turn(self):
@@ -470,9 +430,6 @@ class ChessEngineAdapter:
                     p.addStun(-1)
                     p.addMove(1)
         self._turn_color = "black" if self._turn_color == "white" else "white"
-        # 턴 리셋
-        self._turn_action_locked = False
-        self._turn_moving_piece_pos = None
 
     def next_drop_kind(self, current: str) -> str:
         """드롭 기물 종류 순환"""
