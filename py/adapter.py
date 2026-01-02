@@ -61,14 +61,19 @@ class ChessEngineAdapter:
 
     def __init__(self):
         self._board = chess_ext.ChessBoard()
-        self._turn_color = "white"  # white starts
         self._last_move: Optional[Tuple[Tuple[int, int], Tuple[int, int]]] = None
-        
+
+    def _board_turn(self) -> str:
+        """엔진(chessboard)의 턴 값을 문자열로 변환해 반환."""
+        try:
+            return COLOR_TO_STR.get(self._board.getTurn(), "none")
+        except Exception:
+            return "none"
 
     @property
     def turn(self) -> str:
         """현재 턴 색상 반환 ('white' or 'black')"""
-        return self._turn_color
+        return self._board_turn()
 
     def board(self) -> Iterator[Dict]:
         """
@@ -114,21 +119,19 @@ class ChessEngineAdapter:
     def reset(self):
         """보드 초기화"""
         self._board = chess_ext.ChessBoard()
-        self._turn_color = "white"
+        # 엔진 턴 상태에 동기화
         self._last_move = None
 
     def snapshot(self):
         """엔진 상태 스냅샷 (보드 + 턴 메타)"""
         return {
             "position": self._board.getPosition(),
-            "turn_color": self._turn_color,
             "last_move": self._last_move,
         }
 
     def restore(self, snap) -> None:
         """스냅샷으로 엔진 상태 복원"""
         self._board.setPosition(snap["position"])
-        self._turn_color = snap["turn_color"]
         self._last_move = snap["last_move"]
 
     def owned_piece_at(self, file: int, rank: int) -> bool:
@@ -138,7 +141,7 @@ class ChessEngineAdapter:
             return False
         ct = p.getColor()
         piece_color = COLOR_TO_STR.get(ct, "none")
-        return piece_color == self._turn_color
+        return piece_color == self.turn
 
     def legal_moves(self, file: int, rank: int) -> List[Tuple[int, int]]:
         """
@@ -150,7 +153,7 @@ class ChessEngineAdapter:
         try:
             piece = self._board(file, rank)
             piece_color = COLOR_TO_STR.get(piece.getColor(), "none")
-            if piece_color != self._turn_color:
+            if piece_color != self.turn:
                 return []  # 자신의 색깔이 아니면 이동 불가
         except Exception:
             return []
@@ -172,7 +175,7 @@ class ChessEngineAdapter:
         color: 'white', 'black' 또는 None(현재 턴 색상)
         """
         if color is None:
-            color = self._turn_color
+            color = self.turn
         
         # calcLegalPlacePiece requires a ColorType parameter in C++ binding
         if color == "white":
@@ -198,7 +201,7 @@ class ChessEngineAdapter:
         color: 'white', 'black' 또는 None(현재 턴 색상)
         """
         if color is None:
-            color = self._turn_color
+            color = self.turn
         
         pgns = self._board.calcLegalSuccesion()
         successions = []
@@ -376,7 +379,7 @@ class ChessEngineAdapter:
         pt = STR_TO_PIECE_TYPE.get(piece_type_str)
         if pt is None:
             return False
-        ct = chess_ext.ColorType.WHITE if self._turn_color == "white" else chess_ext.ColorType.BLACK
+        ct = chess_ext.ColorType.WHITE if self.turn == "white" else chess_ext.ColorType.BLACK
         try:
             # ADD PGN 생성 (colorType, file, rank, pieceType)
             pgn = chess_ext.PGN(ct, file, rank, pt)
@@ -423,13 +426,14 @@ class ChessEngineAdapter:
 
     def end_turn(self):
         """턴 종료, 색상 교체"""
+        current = self.turn
         for f in range(8):
             for r in range(8):
                 p = self._board(f, r)
-                if p.getStun() != 0 and  p.getColor() == STR_TO_COLOR_TYPE.get(self._turn_color):
+                if p.getStun() != 0 and  p.getColor() == STR_TO_COLOR_TYPE.get(current):
                     p.addStun(-1)
                     p.addMove(1)
-        self._turn_color = "black" if self._turn_color == "white" else "white"
+        # 턴 전환은 엔진(chessboard::updatePiece)이 책임지므로 여기서는 수행하지 않음
 
     def next_drop_kind(self, current: str) -> str:
         """드롭 기물 종류 순환"""

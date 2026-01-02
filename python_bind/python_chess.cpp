@@ -176,7 +176,8 @@ PYBIND11_MODULE(chess_ext, m) {
 			py::list bp = d["blackPocket"];
 			for(int i=0;i<NUMBER_OF_PIECEKIND;++i){ pos.whitePocket[i] = wp[i].cast<int>(); pos.blackPocket[i] = bp[i].cast<int>(); }
 			b.setPosition(pos);
-		});
+		})
+		.def("getTurn", &chessboard::getTurn);
 
 	// helper: expose pair<int,int> conversion automatically via stl
 

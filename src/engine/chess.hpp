@@ -227,8 +227,7 @@ class chessboard{
         // position 기반 스냅샷 스택 (정확한 undo를 위해 사용)
         std::vector<position> snapshots;
     public:
-        chessboard(){
-            turn_right = colorType::WHITE;
+        chessboard() : turn_right(colorType::WHITE) {
             whitePocket = {1, 1, 2, 2, 2, 8, //king queen bishop knight rook pwan
                 0, //amazon
                 0, //grasshopper
