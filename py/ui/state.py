@@ -39,3 +39,11 @@ class UIState:
     analysis_pv: List[str] = field(default_factory=list)
     depth: int = 6
     analysis_dirty: bool = True
+
+    # Interaction helpers
+    pending_action: Optional[str] = None  # 'drop'
+    last_click_time: float = 0.0
+    last_click_pos: Optional[Tuple[int, int]] = None
+    special_menu: bool = False
+    special_square: Optional[Tuple[int, int]] = None
+    special_options: List[str] = field(default_factory=list)

@@ -52,12 +52,7 @@ def panel_click_rects(ui: UIState):
     return mode_rect, drop_rect
 
 
-def draw(engine, ui: UIState, screen, font, info_font):
-    """현재 엔진 상태와 UIState를 기준으로 전체 화면을 그린다."""
-    panel_width = INFO_W + (DEBUG_W if ui.debug else 0)
-    dbg_btn = layout_buttons(panel_width)
-
-    # board
+def draw_board_and_pieces(engine, ui: UIState, screen, font, info_font):
     for f in range(BOARD_SIZE):
         for r in range(BOARD_SIZE):
             x, y = f * SQUARE, (BOARD_SIZE - 1 - r) * SQUARE
@@ -70,7 +65,6 @@ def draw(engine, ui: UIState, screen, font, info_font):
                 base = TARGET
             pygame.draw.rect(screen, base, (x, y, SQUARE, SQUARE))
 
-    # pieces
     for p in engine.board():
         f, r = p["file"], p["rank"]
         x, y = f * SQUARE, (BOARD_SIZE - 1 - r) * SQUARE
@@ -90,12 +84,14 @@ def draw(engine, ui: UIState, screen, font, info_font):
             mk = info_font.render("*", True, STUN_TEXT)
             screen.blit(mk, (x + SQUARE - 10 - mk.get_width(), y + SQUARE - 4 - mk.get_height()))
 
-    # panel
+
+def draw_panel_background(screen, panel_width: int):
     panel = pygame.Rect(BOARD_PX, 0, panel_width, BOARD_PX)
     pygame.draw.rect(screen, PANEL_BG, panel)
 
-    # 상단 정보
-    y = 8
+
+def draw_header(engine, ui: UIState, screen, info_font, start_y: int) -> int:
+    y = start_y
     surf = info_font.render(f"Turn: {engine.turn}", True, PANEL_TEXT)
     screen.blit(surf, (BOARD_PX + 10, y)); y += 20
     mode_color = (255, 230, 120) if ui.focus == 'mode' else PANEL_TEXT
@@ -110,47 +106,67 @@ def draw(engine, ui: UIState, screen, font, info_font):
     screen.blit(surf, (BOARD_PX + 10, y)); y += 20
     surf = info_font.render("", True, PANEL_TEXT)
     screen.blit(surf, (BOARD_PX + 10, y)); y += 20
+    return y
 
-    # 포켓 정보
-    pocket_y = y
+
+def draw_pockets(engine, screen, info_font, start_y: int, mouse_pos=None):
+    pocket_y = start_y
     wpocket = engine.pockets("white")
     bpocket = engine.pockets("black")
     surf = info_font.render("White Pocket:", True, PANEL_TEXT)
     screen.blit(surf, (BOARD_PX + 10, pocket_y))
     wy = pocket_y + 20
+    pocket_rects = []
     for pt, cnt in wpocket.items():
-        surf = info_font.render(f"{pt}: {cnt}", True, PANEL_TEXT)
-        screen.blit(surf, (BOARD_PX + 15, wy))
-        wy += 18
+        rect = pygame.Rect(BOARD_PX + 10, wy - 2, 150, 20)
+        hover = mouse_pos and rect.collidepoint(mouse_pos)
+        bg = (70, 90, 130) if hover else (50, 70, 110)
+        pygame.draw.rect(screen, bg, rect)
+        pygame.draw.rect(screen, (140, 170, 230), rect, 1)
+        surf = info_font.render(f"{pt}: {cnt}", True, (235, 235, 235) if not hover else (20, 20, 40))
+        screen.blit(surf, (rect.x + 6, rect.y + 2))
+        pocket_rects.append(("white", pt, rect))
+        wy += 22
     surf = info_font.render("Black Pocket:", True, PANEL_TEXT)
     screen.blit(surf, (BOARD_PX + 180, pocket_y))
     by = pocket_y + 20
     for pt, cnt in bpocket.items():
-        surf = info_font.render(f"{pt}: {cnt}", True, PANEL_TEXT)
-        screen.blit(surf, (BOARD_PX + 185, by))
-        by += 18
+        rect = pygame.Rect(BOARD_PX + 180, by - 2, 150, 20)
+        hover = mouse_pos and rect.collidepoint(mouse_pos)
+        bg = (70, 90, 130) if hover else (50, 70, 110)
+        pygame.draw.rect(screen, bg, rect)
+        pygame.draw.rect(screen, (140, 170, 230), rect, 1)
+        surf = info_font.render(f"{pt}: {cnt}", True, (235, 235, 235) if not hover else (20, 20, 40))
+        screen.blit(surf, (rect.x + 6, rect.y + 2))
+        pocket_rects.append(("black", pt, rect))
+        by += 22
+    return max(wy, by) + 10, pocket_rects
 
-    # Controls
-    y = max(wy, by) + 10
+
+def draw_controls(screen, info_font, start_y: int, friend_mode: bool) -> int:
+    y = start_y
     controls = [
         "Controls:",
         "  Click 'Mode' or 'Drop' to focus",
-        "  Left/Right: Mode change (focus) | Drop kind (in Drop mode)",
-        "  M move | D drop | S stun (direct)",
-        "  Tab cycle drop (forward)",
-        "  B toggle bot (black) | Shift+B bot (white)",
-        "  N toggle bot type (weighted/negamax)",
+        "  Click pocket -> board to drop",
+        "  Click piece -> target to move",
+        "  Double-click piece: succession/stun menu",
         "  R reset | Q/Esc quit",
     ]
+    if friend_mode:
+        # In friend mode, hide bot-specific hints implicitly by using the list above (no bot lines).
+        pass
     for ln in controls:
         surf = info_font.render(ln, True, PANEL_TEXT)
         screen.blit(surf, (BOARD_PX + 10, y)); y += 20
+    return y
 
-    # Bot status
+
+def draw_bot_box(ui: UIState, screen, info_font, panel_width: int, start_y: int, mouse_pos=None):
     box_x = BOARD_PX + 10
-    box_y = y
+    box_y = start_y
     box_w = panel_width - 20
-    box_h = 120
+    box_h = 140
     pygame.draw.rect(screen, (40, 40, 60), (box_x, box_y, box_w, box_h))
     pygame.draw.rect(screen, (140, 140, 200), (box_x, box_y, box_w, box_h), 2)
     ty = box_y + 6
@@ -158,8 +174,10 @@ def draw(engine, ui: UIState, screen, font, info_font):
     screen.blit(surf, (box_x + 8, ty)); ty += 18
     state_txt = "enabled" if ui.bot_enabled else "disabled"
     state_col = BOT_ON_TEXT if ui.bot_enabled else (140, 140, 140)
-    surf = info_font.render(f"State: {state_txt}", True, state_col)
+    surf = info_font.render(f"bot play mode: {state_txt}", True, state_col)
     screen.blit(surf, (box_x + 8, ty)); ty += 18
+    bot_rects = []
+    # Show current bot type (non-interactive)
     surf = info_font.render(f"Type: {ui.bot_type}", True, PANEL_TEXT)
     screen.blit(surf, (box_x + 8, ty)); ty += 18
     surf = info_font.render(f"Color: {ui.bot_color}", True, PANEL_TEXT)
@@ -171,9 +189,10 @@ def draw(engine, ui: UIState, screen, font, info_font):
     if ui.bot_move_str:
         surf = info_font.render(f"Last: {ui.bot_move_str}", True, (200, 200, 150))
         screen.blit(surf, (box_x + 8, ty)); ty += 18
-    y = box_y + box_h + 10
+    return box_y + box_h + 10, bot_rects
 
-    # Bottom analysis panel
+
+def draw_bottom_analysis(ui: UIState, screen, info_font, panel_width: int):
     total_w = BOARD_PX + panel_width
     bottom = pygame.Rect(0, BOARD_PX, total_w, ANALYSIS_H)
     pygame.draw.rect(screen, PANEL_BG, bottom)
@@ -219,38 +238,91 @@ def draw(engine, ui: UIState, screen, font, info_font):
         surf = info_font.render("(empty)", True, (140, 140, 140))
         screen.blit(surf, (ax, ay))
 
+
+def draw_debug_button(screen, info_font, dbg_btn, ui: UIState):
     dbg_color = (80, 80, 120) if ui.debug else (60, 60, 60)
     pygame.draw.rect(screen, dbg_color, dbg_btn)
     pygame.draw.rect(screen, (140, 140, 200), dbg_btn, 2)
     dbg = info_font.render("DEBUG OVERLAY", True, (255, 255, 255))
     screen.blit(dbg, dbg.get_rect(center=dbg_btn.center))
 
-    if ui.debug and ui.hovered:
-        hp = next((p for p in engine.board() if p["file"] == ui.hovered[0] and p["rank"] == ui.hovered[1]), None)
-        hy = 8
-        for ln in ([f"Hover: {ui.hovered}"] + (
-            [f"type={hp['type']} color={hp['color']}", f"stun={hp['stun']} ms={hp['move_stack']}"] if hp else ["empty"]
-        )):
-            surf = info_font.render(ln, True, (200, 220, 200))
-            screen.blit(surf, (BOARD_PX + INFO_W + 10, hy)); hy += 18
 
-    if ui.promoting and ui.promotion_choices:
-        area = pygame.Rect(BOARD_PX + 10, BOARD_PX - 190, panel_width - 20, 80)
-        pygame.draw.rect(screen, (40, 40, 60), area)
-        pygame.draw.rect(screen, (140, 140, 200), area, 2)
-        title = info_font.render("Select Promotion", True, (255, 255, 255))
-        screen.blit(title, (area.x + 8, area.y + 6))
-        x = area.x + 8
-        y = area.y + 30
-        box_w, box_h = 44, 28
-        spacing = 8
-        for i, sym in enumerate(ui.promotion_choices):
-            rect = pygame.Rect(x, y, box_w, box_h)
-            color = (200, 200, 80) if i == ui.promote_index else (100, 100, 100)
-            pygame.draw.rect(screen, color, rect)
-            pygame.draw.rect(screen, (220, 220, 220), rect, 2)
-            t = info_font.render(sym, True, (20, 20, 20))
-            screen.blit(t, t.get_rect(center=rect.center))
-            x += box_w + spacing
+def draw_debug_overlay(engine, ui: UIState, screen, info_font):
+    if not (ui.debug and ui.hovered):
+        return
+    hp = next((p for p in engine.board() if p["file"] == ui.hovered[0] and p["rank"] == ui.hovered[1]), None)
+    hy = 8
+    for ln in ([f"Hover: {ui.hovered}"] + (
+        [f"type={hp['type']} color={hp['color']}", f"stun={hp['stun']} ms={hp['move_stack']}"] if hp else ["empty"]
+    )):
+        surf = info_font.render(ln, True, (200, 220, 200))
+        screen.blit(surf, (BOARD_PX + INFO_W + 10, hy)); hy += 18
 
-    return dbg_btn
+
+def draw_promotion_overlay(ui: UIState, screen, info_font, panel_width: int):
+    if not (ui.promoting and ui.promotion_choices):
+        return
+    area = pygame.Rect(BOARD_PX + 10, BOARD_PX - 190, panel_width - 20, 80)
+    pygame.draw.rect(screen, (40, 40, 60), area)
+    pygame.draw.rect(screen, (140, 140, 200), area, 2)
+    title = info_font.render("Select Promotion", True, (255, 255, 255))
+    screen.blit(title, (area.x + 8, area.y + 6))
+    x = area.x + 8
+    y = area.y + 30
+    box_w, box_h = 44, 28
+    spacing = 8
+    for i, sym in enumerate(ui.promotion_choices):
+        rect = pygame.Rect(x, y, box_w, box_h)
+        color = (200, 200, 80) if i == ui.promote_index else (100, 100, 100)
+        pygame.draw.rect(screen, color, rect)
+        pygame.draw.rect(screen, (220, 220, 220), rect, 2)
+        t = info_font.render(sym, True, (20, 20, 20))
+        screen.blit(t, t.get_rect(center=rect.center))
+        x += box_w + spacing
+
+
+def draw_special_action_overlay(ui: UIState, screen, info_font, panel_width: int):
+    if not ui.special_menu:
+        return []
+    area = pygame.Rect(BOARD_PX + 10, BOARD_PX - 270, panel_width - 20, 80)
+    pygame.draw.rect(screen, (55, 45, 65), area)
+    pygame.draw.rect(screen, (180, 170, 220), area, 2)
+    title = info_font.render("Choose action", True, (240, 240, 240))
+    screen.blit(title, (area.x + 8, area.y + 6))
+    x = area.x + 8
+    y = area.y + 32
+    box_w, box_h = 110, 28
+    spacing = 10
+    rects = []
+    for opt in ui.special_options:
+        rect = pygame.Rect(x, y, box_w, box_h)
+        pygame.draw.rect(screen, (120, 110, 160), rect)
+        pygame.draw.rect(screen, (210, 210, 240), rect, 2)
+        t = info_font.render(opt.title(), True, (10, 10, 20))
+        screen.blit(t, t.get_rect(center=rect.center))
+        rects.append((opt, rect))
+        x += box_w + spacing
+    return rects
+
+
+def draw(engine, ui: UIState, screen, font, info_font, mouse_pos=None, friend_mode: bool = False):
+    """현재 엔진 상태와 UIState를 기준으로 전체 화면을 그린다."""
+    panel_width = INFO_W + (DEBUG_W if ui.debug else 0)
+    dbg_btn = layout_buttons(panel_width) if not friend_mode else None
+
+    draw_board_and_pieces(engine, ui, screen, font, info_font)
+    draw_panel_background(screen, panel_width)
+    y = draw_header(engine, ui, screen, info_font, start_y=8)
+    y, pocket_rects = draw_pockets(engine, screen, info_font, start_y=y, mouse_pos=mouse_pos)
+    y = draw_controls(screen, info_font, start_y=y, friend_mode=friend_mode)
+    bot_rects = []
+    if not friend_mode:
+        y, bot_rects = draw_bot_box(ui, screen, info_font, panel_width, start_y=y, mouse_pos=mouse_pos)
+        draw_bottom_analysis(ui, screen, info_font, panel_width)
+    if not friend_mode and dbg_btn:
+        draw_debug_button(screen, info_font, dbg_btn, ui)
+    draw_debug_overlay(engine, ui, screen, info_font)
+    draw_promotion_overlay(ui, screen, info_font, panel_width)
+    special_rects = draw_special_action_overlay(ui, screen, info_font, panel_width)
+
+    return dbg_btn, pocket_rects, special_rects, bot_rects
