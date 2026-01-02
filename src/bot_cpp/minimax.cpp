@@ -904,7 +904,7 @@ namespace agent{
         if(follow_turn){
             cT = curr_pos.turn_right;
         } else {
-            if(curr_pos.turn_right != cT) return curr_pos.log;
+            if(curr_pos.turn_right != cT) return {};
         }
 
         // initialize zobrist for PV generation
@@ -933,12 +933,67 @@ namespace agent{
             }
         }
 
-        // build best line: start from the provided position log, then append PV continuation
-        std::vector<PGN> result = curr_pos.log;
-        for(const auto &m : pv) result.push_back(m);
-        return result;
+        // PV only (no prefix log)
+        return pv;
     }
 
+    calcInfo minimax::getCalcInfo(position curr_pos, int depth)
+    {
+        calcInfo info{};
+
+        // prepare simulate board and PV storage
+        simulate_board = chessboard(curr_pos);
+        offset_board = curr_pos;
+        root_pv.clear();
+
+        std::vector<PGN> pv;
+
+        // follow_turn mode: adapt to position.turn_right; otherwise require match
+        if(follow_turn){
+            cT = curr_pos.turn_right;
+        } else {
+            if(curr_pos.turn_right != cT) return info;
+        }
+
+        // initialize zobrist for PV generation
+        current_zobrist = compute_zobrist(simulate_board.getPosition()) ^ zobrist_side[(cT == colorType::WHITE) ? 0 : 1];
+
+        int final_score_bot = 0;
+        if(!iterative_deepening){
+            final_score_bot = minimax_search(depth, cT, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), 0, pv);
+        } else {
+            int last_score = 0;
+            for(int d = 1; d <= depth; ++d){
+                pv.clear();
+                int score;
+                if(!use_aspiration || d == 1){
+                    score = minimax_search(d, cT, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), 0, pv);
+                } else {
+                    int window = aspiration_window_base;
+                    int alpha = last_score - window;
+                    int beta  = last_score + window;
+                    score = minimax_search(d, cT, alpha, beta, 0, pv);
+                    if(score <= alpha || score >= beta){
+                        score = minimax_search(d, cT, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), 0, pv);
+                    }
+                }
+                last_score = score;
+                if(!pv.empty()) root_pv = pv;
+            }
+            final_score_bot = last_score;
+        }
+
+        // convert to the same convention as eval_pos(): + = white better, - = black better
+        info.eval_val = (cT == colorType::WHITE) ? final_score_bot : -final_score_bot;
+
+        if(!pv.empty()) info.bestMove = pv[0];
+        else info.bestMove = PGN();
+
+        // PV only (no prefix log)
+        info.line = pv;
+
+        return info;
+    }
 } // namespace agent
 
 
