@@ -32,6 +32,11 @@ def pgn_to_str(pgn) -> str:
     if mt == chess_ext.MoveType.SUCCESION:
         f, r = pgn.getFromSquare()
         return f"SUC@{idx_to_alg(f, r)}"
+    if mt == chess_ext.MoveType.DISGUISE:
+        f, r = pgn.getFromSquare()
+        dis_pt = pgn.getPieceType()
+        sym = PIECE_TYPE_TO_STR.get(dis_pt, "?")
+        return f"DIS {idx_to_alg(f, r)}={sym}"
     return "?"
 
 
