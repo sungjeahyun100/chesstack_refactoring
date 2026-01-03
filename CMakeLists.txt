@@ -53,6 +53,12 @@ if(BUILD_TESTS)
     )
     target_link_libraries(test_bot_line PRIVATE engine_lib bot_lib)
     target_include_directories(test_bot_line PRIVATE ${ENGINE_DIR} ${BOT_DIR})
+
+    add_executable(test_get_calc_info
+        test/test_get_calc_info.cpp
+    )
+    target_link_libraries(test_get_calc_info PRIVATE engine_lib bot_lib)
+    target_include_directories(test_get_calc_info PRIVATE ${ENGINE_DIR} ${BOT_DIR})
 endif()
 
 

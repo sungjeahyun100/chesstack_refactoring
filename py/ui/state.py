@@ -35,7 +35,7 @@ class UIState:
     bot_color: str = "black"  # "white" or "black"
     bot_type: str = "my_propose"  # default bot type
     placement_sample: int = 6
-    bot_last_move_time: float = 0.0
+    bot_last_move_time: float = 10.0
     bot_acted_turn: Optional[str] = None
     bot_move_str: Optional[str] = None
 
@@ -43,7 +43,7 @@ class UIState:
     analysis_eval: int = 0
     analysis_best: str = ""
     analysis_pv: List[str] = field(default_factory=list)
-    depth: int = 6
+    depth: int = 4
     analysis_dirty: bool = True
 
     # Interaction helpers

@@ -407,6 +407,7 @@ std::vector<PGN> chessboard::calcLegalDisguise(colorType cT)
 
                 pieceType target = static_cast<pieceType>(idx);
                 if(target == pieceType::NONE) continue;
+                if(target == pc.getPieceType()) continue;
 
                 result.push_back(PGN(cT, file, rank, target, moveType::DISGUISE));
             }

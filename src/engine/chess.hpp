@@ -220,6 +220,7 @@ struct position{
     std::array<int, NUMBER_OF_PIECEKIND> blackPocket;
     colorType turn_right;
     std::vector<PGN> log;
+    bool is_custom;
 };
 
 class chessboard{
@@ -231,8 +232,9 @@ class chessboard{
         std::vector<PGN> log;
         // position 기반 스냅샷 스택 (정확한 undo를 위해 사용)
         std::vector<position> snapshots;
+        bool custom_position;
     public:
-        chessboard() : turn_right(colorType::WHITE) {
+        chessboard() : turn_right(colorType::WHITE), custom_position(false) {
             whitePocket = {1, 1, 2, 2, 2, 8, //king queen bishop knight rook pwan
                 0, //amazon
                 0, //grasshopper
@@ -264,6 +266,8 @@ class chessboard{
             whitePocket = pos.whitePocket;
             blackPocket = pos.blackPocket;
             turn_right = pos.turn_right;
+            custom_position = pos.is_custom;
+            log = pos.log;
         }
 
         chessboard(const position& pos){
@@ -271,6 +275,8 @@ class chessboard{
             whitePocket = pos.whitePocket;
             blackPocket = pos.blackPocket;
             turn_right = pos.turn_right;
+            custom_position = pos.is_custom;
+            log = pos.log;
         }
 
         piece& operator()(int file, int rank){
@@ -316,6 +322,7 @@ class chessboard{
                 1  //tempest rook
             };
         }
+        void setThisIsCustom(bool t){ custom_position = t; }
 
         std::vector<PGN> calcLegalMovesInOnePiece(colorType cT, int file, int rank, bool calc_potential); //포지션에 따라 특정 기물의 합법 수를 계산 (이동 & 승격 PGN반환)
         //calc_potential은 스택을 무시하고 이 기물이 잠재적으로 할 수 있는 행위를 계산하겠다는 뜻이다.
@@ -357,10 +364,13 @@ class chessboard{
             pos.board = board;
             pos.whitePocket = whitePocket;
             pos.blackPocket = blackPocket;
-            pos.log = log; 
             pos.turn_right = turn_right;
+            pos.log = log; 
+            pos.is_custom = custom_position;
             return pos;
         }
+
+        bool getThisPositionIsCustom() const { return custom_position; }
 
         void setPosition(const position& pos){
             board = pos.board;
@@ -368,6 +378,7 @@ class chessboard{
             blackPocket = pos.blackPocket;
             log = pos.log; 
             turn_right = pos.turn_right;
+            custom_position = pos.is_custom;
         }
 
         // 빠른 검사: 로그 크기(cheap)

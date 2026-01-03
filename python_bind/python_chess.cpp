@@ -5,6 +5,37 @@
 
 namespace py = pybind11;
 
+// thin wrappers to expose bot search with two arguments (board, depth)
+static PGN py_getBestMove(agent::minimax &bot, const chessboard &b, int depth){
+	position pos = b.getPosition();
+	return bot.getBestMove(pos, depth);
+}
+
+static std::vector<PGN> py_getBestLine(agent::minimax &bot, const chessboard &b, int depth){
+	position pos = b.getPosition();
+	return bot.getBestLine(pos, depth);
+}
+
+static agent::calcInfo py_getCalcInfo(agent::minimax &bot, const chessboard &b, int depth){
+	position pos = b.getPosition();
+	return bot.getCalcInfo(pos, depth);
+}
+
+static PGN py_getBestMove_gpt(agent::minimax_GPTproposed &bot, const chessboard &b, int depth){
+	position pos = b.getPosition();
+	return bot.getBestMove(pos, depth);
+}
+
+static std::vector<PGN> py_getBestLine_gpt(agent::minimax_GPTproposed &bot, const chessboard &b, int depth){
+	position pos = b.getPosition();
+	return bot.getBestLine(pos, depth);
+}
+
+static agent::calcInfo py_getCalcInfo_gpt(agent::minimax_GPTproposed &bot, const chessboard &b, int depth){
+	position pos = b.getPosition();
+	return bot.getCalcInfo(pos, depth);
+}
+
 PYBIND11_MODULE(chess_ext, m) {
 	m.doc() = "pybind11 bindings for project_bc_refectoring chess engine (prototype)";
 
@@ -211,9 +242,9 @@ PYBIND11_MODULE(chess_ext, m) {
 		.def("setNodeSearched", &agent::minimax::setNodeSearched)
 		.def("getNodesSearched", &agent::minimax::getNodesSearched)
 		.def("eval_pos", &agent::minimax::eval_pos)
-		.def("getBestMove", [](agent::minimax &bot, const chessboard &b, int depth){ position pos = b.getPosition(); return bot.getBestMove(pos, depth); })
-		.def("getBestLine", [](agent::minimax &bot, const chessboard &b, int depth){ position pos = b.getPosition(); return bot.getBestLine(pos, depth); })
-		.def("getCalcInfo", [](agent::minimax &bot, const chessboard &b, int depth){ position pos = b.getPosition(); return bot.getCalcInfo(pos, depth); });
+		.def("getBestMove", &py_getBestMove)
+		.def("getBestLine", &py_getBestLine)
+		.def("getCalcInfo", &py_getCalcInfo);
 
 	py::class_<agent::minimax_GPTproposed>(m, "MinimaxGPT")
 		.def(py::init<>())
@@ -227,8 +258,8 @@ PYBIND11_MODULE(chess_ext, m) {
 		.def("setNodesSearched", &agent::minimax_GPTproposed::setNodesSearched)
 		.def("getNodesSearched", &agent::minimax_GPTproposed::getNodesSearched)
 		.def("eval_pos", &agent::minimax_GPTproposed::eval_pos)
-		.def("getBestMove", [](agent::minimax_GPTproposed &bot, const chessboard &b, int depth){ position pos = b.getPosition(); return bot.getBestMove(pos, depth); })
-		.def("getBestLine", [](agent::minimax_GPTproposed &bot, const chessboard &b, int depth){ position pos = b.getPosition(); return bot.getBestLine(pos, depth); })
-		.def("getCalcInfo", [](agent::minimax_GPTproposed &bot, const chessboard &b, int depth){ position pos = b.getPosition(); return bot.getCalcInfo(pos, depth); });
+		.def("getBestMove", &py_getBestMove_gpt)
+		.def("getBestLine", &py_getBestLine_gpt)
+		.def("getCalcInfo", &py_getCalcInfo_gpt);
 
 }

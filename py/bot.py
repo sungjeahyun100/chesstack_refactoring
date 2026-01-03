@@ -48,15 +48,13 @@ class MinimaxBot:
             sf, sr = pgn.getFromSquare()
             df, dr = pgn.getToSquare()
             if mt == chess_ext.MoveType.PROMOTE:
-                if not self.engine.move((sf, sr), (df, dr)):
-                    return False
                 sym = PIECE_TYPE_TO_STR.get(pgn.getPieceType(), "")
                 if not sym:
                     return False
+                # promotion PGN already encodes the promoted type; apply it once
                 ok = self.engine.promote_move((sf, sr), (df, dr), sym)
-                # record standardized move string on adapter for UI
                 try:
-                    self._last_move_str = f"from({sf},{sr})->({df},{dr})"
+                    self._last_move_str = f"from({sf},{sr})->({df},{dr}) promote {sym}"
                 except Exception:
                     pass
                 return ok
@@ -86,6 +84,18 @@ class MinimaxBot:
             ok = self.engine.succession(f, r)
             try:
                 self._last_move_str = f"SUCESSION at({f},{r})"
+            except Exception:
+                pass
+            return ok
+
+        if mt == chess_ext.MoveType.DISGUISE:
+            f, r = pgn.getFromSquare()
+            sym = PIECE_TYPE_TO_STR.get(pgn.getPieceType(), "")
+            if not sym:
+                return False
+            ok = self.engine.disguise(f, r, sym)
+            try:
+                self._last_move_str = f"DISGUISE at({f},{r}) -> {sym}"
             except Exception:
                 pass
             return ok

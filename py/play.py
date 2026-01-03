@@ -353,18 +353,17 @@ def main(engine):
             if ui.bot_enabled and engine.turn == ui.bot_color and not ui.victory_visible:
                 if ui.bot_acted_turn != engine.turn:
                     moved = bot.get_best_move()
-                    # prefer adapter-provided standardized move string (set by bot wrapper on engine)
-                    mvstr = bot._last_move_str 
+                    mvstr = bot._last_move_str  # 표준화된 이동 문자열
                     if moved:
                         ui.bot_move_str = mvstr if mvstr else f"({ui.bot_color}/{ui.bot_type}) moved"
+                        engine.end_turn()  # updatePiece가 턴을 넘기므로 스택만 정리
+                        ui.selected = None
+                        ui.targets = []
+                        ui.bot_acted_turn = engine.turn
+                        ui.analysis_dirty = True
                     else:
+                        # 실패 시 이번 턴에 다시 시도하도록 acted 플래그를 남기지 않는다
                         ui.bot_move_str = None
-                    # end the turn only after the bot call returns
-                    engine.end_turn()
-                    ui.selected = None
-                    ui.targets = []
-                    ui.bot_acted_turn = engine.turn
-                    ui.analysis_dirty = True
             else:
                 # reset act flag when it's not the bot's turn
                 ui.bot_acted_turn = None

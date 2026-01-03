@@ -510,7 +510,8 @@ class ChessEngineAdapter:
         return winner if winner in ("white", "black") else None
 
     def end_turn(self, flip: bool = False):
-        """턴 종료 시 스택 처리. flip=True일 때만 턴을 넘긴다 (updatePiece를 거치지 않은 행동용)."""
+        """턴 종료 시 스택 처리. updatePiece가 이미 턴을 넘기므로 기본은 swap하지 않는다.
+        flip=True로 호출할 때만 턴을 추가로 넘긴다 (updatePiece를 거치지 않은 액션용)."""
         current = self.turn
         for f in range(8):
             for r in range(8):

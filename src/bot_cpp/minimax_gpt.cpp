@@ -42,12 +42,11 @@ struct minimax_gpt_impl : public minimax {
     virtual int eval_pos(const position& pos) const override {
         // Weighted sum of components (centipawn-ish scale)
         const double w_M = 1.0;        // 기물 자체 가치
-        const double w_Mob = 15.0;     // 이동성
-        const double w_Res = 40.0;     // 스택 가치 (move/stun stacks)
-        const double w_Place = 30.0;   // 착수 위치의 중앙 거리 대비 가중치
-        const double w_Thr = 50.0;     // threat/capture potential 기물 공격 가중치
-        const double w_Turn = 5.0;    // side-to-move bonus 템포 가중치
-        const double w_Royal = 8000.0; // last-royal bonus 마지막 남은 로얄 피스 가중치
+        const double w_Mob = 1.0;     // 이동성
+        const double w_Res = 1.0;     // 스택 가치 (move/stun stacks)
+        const double w_Place = 1.0;   // 착수 위치의 중앙 거리 대비 가중치
+        const double w_Thr = 1.0;     // threat/capture potential 기물 공격 가중치
+        const double w_Turn = 10.0;    // side-to-move bonus 템포 가중치
 
         chessboard tmp(pos);
         double Mat = 0.0;
@@ -119,19 +118,6 @@ struct minimax_gpt_impl : public minimax {
             }
         }
 
-        // Royal last-piece bonus
-        int white_royal = 0, black_royal = 0;
-        for(int f=0; f<BOARDSIZE; ++f) for(int r=0; r<BOARDSIZE; ++r){
-            const piece &p = pos.board[f][r];
-            if(p.getPieceType() == pieceType::NONE) continue;
-            if(p.getIsRoyal()){
-                if(p.getColor() == colorType::WHITE) ++white_royal; else ++black_royal;
-            }
-        }
-        double Royal = 0.0;
-        if(white_royal == 1 && black_royal == 0) Royal = w_Royal;
-        if(black_royal == 1 && white_royal == 0) Royal = -w_Royal;
-
         // infer side-to-move from explicit flag `turn_right` in position
         double Turn = (pos.turn_right == colorType::WHITE) ? 1.0 : -1.0;
 
@@ -142,7 +128,6 @@ struct minimax_gpt_impl : public minimax {
         eval += w_Place * Place;
         eval += w_Thr * Thr;
         eval += w_Turn * Turn;
-        eval += Royal;
 
         return static_cast<int>(std::round(eval));
     }
