@@ -526,3 +526,32 @@ void chessboard::undoBoard(){
     // restore full position
     setPosition(prev);
 }
+
+victoryType chessboard::getWhoIsVictory()
+{
+    bool white_royal;
+    bool black_royal;
+
+    if(log.size() < 2) return victoryType::NONE;
+
+    for(int i=0; i<BOARDSIZE; i++){
+        for(int j=0; j<BOARDSIZE; j++){
+            if(board[i][j].isEmpty()) continue;
+            if(board[i][j].getIsRoyal()){
+                if(board[i][j].getColor() == colorType::WHITE){
+                    white_royal = true;
+                }else{
+                    black_royal = true;
+                }
+            }
+        }
+    }
+
+    if(white_royal && black_royal){
+        return victoryType::NONE;
+    }else if(white_royal && black_royal == false){
+        return victoryType::WHITE;
+    }else if(white_royal == false && black_royal){
+        return victoryType::BLACK;
+    }
+}

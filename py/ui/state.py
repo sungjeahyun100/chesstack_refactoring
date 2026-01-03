@@ -53,3 +53,8 @@ class UIState:
     special_menu: bool = False
     special_square: Optional[Tuple[int, int]] = None
     special_options: List[str] = field(default_factory=list)
+
+    # Victory overlay (render-only; toggled externally)
+    victory_visible: bool = False
+    victory_winner: Optional[str] = None  # 'white' | 'black' | None
+    victory_reason: str = ""

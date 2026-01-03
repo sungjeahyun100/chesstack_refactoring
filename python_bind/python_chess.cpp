@@ -54,6 +54,11 @@ PYBIND11_MODULE(chess_ext, m) {
 		.value("DISGUISE", moveType::DISGUISE)
 		.export_values();
 
+	py::enum_<victoryType>(m, "VictoryType")
+	    .value("NONE", victoryType::NONE)
+		.value("WHITE", victoryType::WHITE)
+		.value("BLACK", victoryType::BLACK)
+		.export_values();
 	// PGN
 	py::class_<PGN>(m, "PGN")
 		.def(py::init<>())  // 기본 생성자
@@ -181,7 +186,8 @@ PYBIND11_MODULE(chess_ext, m) {
 			for(int i=0;i<NUMBER_OF_PIECEKIND;++i){ pos.whitePocket[i] = wp[i].cast<int>(); pos.blackPocket[i] = bp[i].cast<int>(); }
 			b.setPosition(pos);
 		})
-		.def("getTurn", &chessboard::getTurn);
+		.def("getTurn", &chessboard::getTurn)
+		.def("getWhoIsVictory", &chessboard::getWhoIsVictory);
 
 	// helper: expose pair<int,int> conversion automatically via stl
 

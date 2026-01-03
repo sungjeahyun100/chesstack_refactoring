@@ -376,4 +376,7 @@ class chessboard{
 
         // undo using position snapshots
         void undoBoard();
+
+        //승리판정함수.
+        victoryType getWhoIsVictory();
 };

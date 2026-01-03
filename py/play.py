@@ -124,6 +124,10 @@ def main(engine):
                         running = False
                         break
 
+                    if ui.victory_visible:
+                        # After victory, only allow MENU/keys; ignore other clicks
+                        continue
+
                     if bot_btn and bot_btn.collidepoint(ev.pos) and not friend_mode:
                         chosen = show_bot_type_menu(screen, info_font, BOT_TYPES)
                         if chosen:
@@ -164,6 +168,14 @@ def main(engine):
                                         # Stun does not pass through updatePiece, so we manually flip the turn
                                         engine.end_turn(flip=True)
                                         ui.analysis_dirty = True
+                                    # Check victory after action
+                                    if not ui.victory_visible:
+                                        winner = engine.victory()
+                                        if winner:
+                                            ui.victory_visible = True
+                                            ui.victory_winner = winner
+                                            ui.victory_reason = "Engine reported victory"
+                                            ui.status = f"{winner} wins"
                                 ui.special_menu = False
                                 ui.special_options = []
                                 ui.special_square = None
@@ -323,13 +335,22 @@ def main(engine):
                                         ui.targets = []
                                 else:
                                     ui.status = "Not a legal target"
+
+                        # Check victory after player actions
+                        if not ui.victory_visible:
+                            winner = engine.victory()
+                            if winner:
+                                ui.victory_visible = True
+                                ui.victory_winner = winner
+                                ui.victory_reason = "Engine reported victory"
+                                ui.status = f"{winner} wins"
             
             if not running:
                 continue
 
             # 봇 턴 처리
             # Bot: act immediately when it's the bot's turn; act only once per turn
-            if ui.bot_enabled and engine.turn == ui.bot_color:
+            if ui.bot_enabled and engine.turn == ui.bot_color and not ui.victory_visible:
                 if ui.bot_acted_turn != engine.turn:
                     moved = bot.get_best_move()
                     # prefer adapter-provided standardized move string (set by bot wrapper on engine)
@@ -352,6 +373,15 @@ def main(engine):
                 update_analysis(ui, bot)
             if friend_mode:
                 ui.analysis_dirty = False
+
+            # Victory check after bot/action updates
+            if not ui.victory_visible:
+                winner = engine.victory()
+                if winner:
+                    ui.victory_visible = True
+                    ui.victory_winner = winner
+                    ui.victory_reason = "Engine reported victory"
+                    ui.status = f"{winner} wins"
 
             screen.fill((0,0,0))
             dbg_btn, pocket_rects, special_rects, bot_rects = draw(engine, ui, screen, font, info_font, mouse_pos=pygame.mouse.get_pos(), friend_mode=friend_mode)

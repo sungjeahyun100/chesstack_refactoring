@@ -328,6 +328,48 @@ def draw_special_action_overlay(ui: UIState, screen, info_font, panel_width: int
     return rects
 
 
+def draw_victory_overlay(ui: UIState, screen, info_font, panel_width: int):
+    """Game over popup. Visibility is controlled by ui.victory_visible flag."""
+    if not ui.victory_visible:
+        return
+
+    total_w = BOARD_PX + panel_width
+    view_h = screen.get_height()
+
+    # Dim background
+    dim = pygame.Surface((total_w, view_h), pygame.SRCALPHA)
+    dim.fill((10, 10, 20, 170))
+    screen.blit(dim, (0, 0))
+
+    box_w, box_h = 360, 200
+    box_x = (total_w - box_w) // 2
+    box_y = (view_h - box_h) // 2
+    box = pygame.Rect(box_x, box_y, box_w, box_h)
+
+    pygame.draw.rect(screen, (60, 70, 100), box)
+    pygame.draw.rect(screen, (210, 220, 255), box, 3)
+
+    title_txt = ui.victory_winner.title() + " wins!" if ui.victory_winner else "Game Over"
+    reason_txt = ui.victory_reason if ui.victory_reason else ""
+
+    title = info_font.render(title_txt, True, (255, 240, 200))
+    screen.blit(title, title.get_rect(center=(box.centerx, box.y + 40)))
+
+    if reason_txt:
+        reason = info_font.render(reason_txt, True, (220, 220, 230))
+        screen.blit(reason, reason.get_rect(center=(box.centerx, box.y + 80)))
+
+    hint_lines = [
+        "Press R to restart",
+        "Press MENU/Q/Esc to leave",
+    ]
+    hy = box.y + 120
+    for ln in hint_lines:
+        surf = info_font.render(ln, True, (200, 210, 230))
+        screen.blit(surf, surf.get_rect(center=(box.centerx, hy)))
+        hy += 26
+
+
 def draw(engine, ui: UIState, screen, font, info_font, mouse_pos=None, friend_mode: bool = False):
     """현재 엔진 상태와 UIState를 기준으로 전체 화면을 그린다."""
     panel_width = INFO_W + (DEBUG_W if ui.debug else 0)
@@ -347,6 +389,7 @@ def draw(engine, ui: UIState, screen, font, info_font, mouse_pos=None, friend_mo
     draw_debug_overlay(engine, ui, screen, info_font)
     draw_promotion_overlay(ui, screen, info_font, panel_width)
     draw_disguise_overlay(ui, screen, info_font, panel_width)
+    draw_victory_overlay(ui, screen, info_font, panel_width)
     special_rects = draw_special_action_overlay(ui, screen, info_font, panel_width)
 
     return dbg_btn, pocket_rects, special_rects, bot_rects

@@ -56,6 +56,15 @@ COLOR_TO_STR = {
 
 STR_TO_COLOR_TYPE = {v: k for k, v in COLOR_TO_STR.items() if v}
 
+if hasattr(chess_ext, "VictoryType"):
+    VICTORY_TO_STR = {
+        chess_ext.VictoryType.WHITE: "white",
+        chess_ext.VictoryType.BLACK: "black",
+        chess_ext.VictoryType.NONE: None,
+    }
+else:
+    VICTORY_TO_STR = {}
+
 class ChessEngineAdapter:
     """chess_ext.ChessBoard를 pygame UI에서 사용하기 위한 어댑터"""
 
@@ -490,6 +499,15 @@ class ChessEngineAdapter:
             return True
         except Exception:
             return False
+
+    def victory(self) -> Optional[str]:
+        """엔진이 보고하는 승자 색상을 문자열로 반환 ('white'/'black'), 없으면 None."""
+        try:
+            vt = self._board.getWhoIsVictory()
+        except Exception:
+            return None
+        winner = VICTORY_TO_STR.get(vt)
+        return winner if winner in ("white", "black") else None
 
     def end_turn(self, flip: bool = False):
         """턴 종료 시 스택 처리. flip=True일 때만 턴을 넘긴다 (updatePiece를 거치지 않은 행동용)."""

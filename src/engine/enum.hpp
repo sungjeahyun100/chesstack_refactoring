@@ -57,4 +57,10 @@ enum class moveType{
     DISGUISE
 };
 
+enum class victoryType{
+    NONE=-1,
+    WHITE,
+    BLACK
+};
+
 
