@@ -146,10 +146,23 @@ def main(engine):
                                     elif opt == "stun":
                                         ok = engine.stun(sx, sy)
                                         ui.status = "Stun (turn ended)" if ok else "Stun failed"
+                                    elif opt == "disguise":
+                                        opts = engine.disguise_options(sx, sy)
+                                        if opts:
+                                            ui.disguising = True
+                                            ui.disguise_choices = opts
+                                            ui.disguise_index = 0
+                                            ui.disguise_from = (sx, sy)
+                                            ui.status = "Choose disguise type"
+                                            ok = False  # opening overlay, not finishing turn yet
+                                        else:
+                                            ui.status = "No disguise options"
+                                            ok = False
                                     else:
                                         ok = False
                                     if ok:
-                                        engine.end_turn()
+                                        # Stun does not pass through updatePiece, so we manually flip the turn
+                                        engine.end_turn(flip=True)
                                         ui.analysis_dirty = True
                                 ui.special_menu = False
                                 ui.special_options = []
@@ -157,6 +170,33 @@ def main(engine):
                                 handled_special = True
                                 break
                         if handled_special:
+                            continue
+
+                    # disguise overlay click (royal)
+                    if ui.disguising and ui.disguise_choices and ui.disguise_from:
+                        panel_width = INFO_W + (DEBUG_W if ui.debug else 0)
+                        area = pygame.Rect(BOARD_PX + 10, BOARD_PX - 270, panel_width - 20, 80)
+                        if area.collidepoint(ev.pos):
+                            x = area.x + 8
+                            y = area.y + 30
+                            box_w, box_h = 56, 28
+                            spacing = 8
+                            for i, sym in enumerate(ui.disguise_choices):
+                                rect = pygame.Rect(x, y, box_w, box_h)
+                                if rect.collidepoint(ev.pos):
+                                    ui.disguise_index = i
+                                    ok = engine.disguise(ui.disguise_from[0], ui.disguise_from[1], sym)
+                                    if ok:
+                                        engine.end_turn()
+                                        ui.status = f"Disguised to {sym} (turn ended)"
+                                        ui.analysis_dirty = True
+                                    else:
+                                        ui.status = "Disguise failed"
+                                    ui.disguising = False
+                                    ui.disguise_choices = []
+                                    ui.disguise_from = None
+                                    break
+                                x += box_w + spacing
                             continue
 
                     if not friend_mode:
@@ -224,14 +264,23 @@ def main(engine):
                     sq = board_from_mouse(ev.pos)
                     if sq:
                         x, y = sq
-                        # Double-click piece: open special action chooser (succession/stun)
+                        # Double-click piece: open special action chooser; add disguise option for royal
                         if is_double and engine.owned_piece_at(x, y):
+                            opts = ["succession", "stun"]
+                            if engine.is_royal(x, y):
+                                opts.append("disguise")
+                            ui.disguising = False
+                            ui.disguise_choices = []
+                            ui.disguise_from = None
                             ui.special_menu = True
                             ui.special_square = (x, y)
-                            ui.special_options = ["succession", "stun"]
-                            ui.status = "Choose action (succession/stun)"
+                            ui.special_options = opts
+                            ui.status = "Choose action"
                             continue
 
+                        ui.disguising = False
+                        ui.disguise_choices = []
+                        ui.disguise_from = None
                         if ui.pending_action == "drop":
                             ok = engine.drop(ui.drop_kind, x, y)
                             if ok:

@@ -64,52 +64,50 @@ int main(){
 
     // single sample: small middlegame (original)
     samples.push_back(pos);
-//
-    //// additional samples constructed via helper
-    //samples.push_back(make_position({
-    //    {colorType::WHITE, pieceType::ROOK, 0,0},
-    //    {colorType::WHITE, pieceType::PWAN, 1,1},
-    //    {colorType::WHITE, pieceType::PWAN, 2,1},
-    //    {colorType::BLACK, pieceType::ROOK, 7,7},
-    //    {colorType::BLACK, pieceType::PWAN, 6,6}
-    //}, false)); // rook endgame-like
-//
-    //samples.push_back(make_position({
-    //    {colorType::WHITE, pieceType::QUEEN, 3,3},
-    //    {colorType::WHITE, pieceType::BISHOP, 2,2},
-    //    {colorType::WHITE, pieceType::KNIGHT, 1,2},
-    //    {colorType::BLACK, pieceType::QUEEN, 4,4},
-    //    {colorType::BLACK, pieceType::ROOK, 6,6},
-    //    {colorType::BLACK, pieceType::KNIGHT, 5,5}
-    //}, false)); // tactical middlegame
-//
-    //samples.push_back(make_position({
-    //    {colorType::WHITE, pieceType::ROOK, 0,1},
-    //    {colorType::WHITE, pieceType::ROOK, 1,1},
-    //    {colorType::WHITE, pieceType::KNIGHT, 2,2},
-    //    {colorType::BLACK, pieceType::ROOK, 7,6},
-    //    {colorType::BLACK, pieceType::BISHOP, 5,5},
-    //    {colorType::BLACK, pieceType::PWAN, 4,4}
-    //}, false)); // cramped tactics
+    // additional samples constructed via helper
+    samples.push_back(make_position({
+        {colorType::WHITE, pieceType::ROOK, 0,0},
+        {colorType::WHITE, pieceType::PWAN, 1,1},
+        {colorType::WHITE, pieceType::PWAN, 2,1},
+        {colorType::BLACK, pieceType::ROOK, 7,7},
+        {colorType::BLACK, pieceType::PWAN, 6,6}
+    }, false)); // rook endgame-like
+
+    samples.push_back(make_position({
+        {colorType::WHITE, pieceType::QUEEN, 3,3},
+        {colorType::WHITE, pieceType::BISHOP, 2,2},
+        {colorType::WHITE, pieceType::KNIGHT, 1,2},
+        {colorType::BLACK, pieceType::QUEEN, 4,4},
+        {colorType::BLACK, pieceType::ROOK, 6,6},
+        {colorType::BLACK, pieceType::KNIGHT, 5,5}
+    }, false)); // tactical middlegame
+
+    samples.push_back(make_position({
+        {colorType::WHITE, pieceType::ROOK, 0,1},
+        {colorType::WHITE, pieceType::ROOK, 1,1},
+        {colorType::WHITE, pieceType::KNIGHT, 2,2},
+        {colorType::BLACK, pieceType::ROOK, 7,6},
+        {colorType::BLACK, pieceType::BISHOP, 5,5},
+        {colorType::BLACK, pieceType::PWAN, 4,4}
+    }, false)); // cramped tactics
 
     // --- Variant-piece samples (added for testing variant pieces like Amazon, Grasshopper, etc.)
-    //samples.push_back(make_position({
-    //    {colorType::WHITE, pieceType::AMAZON, 2,2},
-    //    {colorType::WHITE, pieceType::GRASSHOPPER, 3,2},
-    //    {colorType::WHITE, pieceType::KNIGHTRIDER, 1,3},
-    //    {colorType::BLACK, pieceType::ARCHBISHOP, 5,5},
-    //    {colorType::BLACK, pieceType::DABBABA, 6,6}
-    //}, true)); // variant tactical mix
+    samples.push_back(make_position({
+        {colorType::WHITE, pieceType::AMAZON, 2,2},
+        {colorType::WHITE, pieceType::GRASSHOPPER, 3,2},
+        {colorType::WHITE, pieceType::KNIGHTRIDER, 1,3},
+        {colorType::BLACK, pieceType::ARCHBISHOP, 5,5},
+        {colorType::BLACK, pieceType::DABBABA, 6,6}
+    }, true)); // variant tactical mix
+    samples.push_back(make_position({
+        {colorType::WHITE, pieceType::CENTAUR, 1,1},
+        {colorType::WHITE, pieceType::CAMEL, 2,1},
+        {colorType::WHITE, pieceType::TEMPESTROOK, 3,1},
+        {colorType::BLACK, pieceType::ALFIL, 6,6},
+        {colorType::BLACK, pieceType::FERZ, 5,6}
+    }, true)); // variant endgame-like
 
-    //samples.push_back(make_position({
-    //    {colorType::WHITE, pieceType::CENTAUR, 1,1},
-    //    {colorType::WHITE, pieceType::CAMEL, 2,1},
-    //    {colorType::WHITE, pieceType::TEMPESTROOK, 3,1},
-    //    {colorType::BLACK, pieceType::ALFIL, 6,6},
-    //    {colorType::BLACK, pieceType::FERZ, 5,6}
-    //}, true)); // variant endgame-like
-
-    const int maxDepth = 40; // keep reasonable for automated runs
+    const int maxDepth = 10; // keep reasonable for automated runs
     for(size_t pid=0; pid<samples.size(); ++pid){
         const position &pcur = samples[pid];
         position mutable_pos = pcur; // chessboard ctor expects non-const reference
@@ -131,7 +129,7 @@ int main(){
         mutable_pos = cbx.getPosition();
 
         agent::minimax_GPTproposed botx(colorType::WHITE);
-        botx.setPlacementSample(3);
+        botx.setPlacementSample(30);
 
         for(int depth = 1; depth <= maxDepth; ++depth){
             auto t0 = std::chrono::high_resolution_clock::now();

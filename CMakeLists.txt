@@ -10,6 +10,7 @@ add_compile_options(-Wall -Wextra -pedantic)
 set(ENGINE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/engine)
 set(BOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/bot_cpp)
 
+option(BUILD_TESTS "build tests" ON)
 option(BUILD_PYBINDING "Build pybind11 Python extension" ON)
 
 # Engine library (shared/static controlled by BUILD_SHARED_LIBS)

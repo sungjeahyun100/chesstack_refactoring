@@ -96,6 +96,7 @@ class ChessEngineAdapter:
                     "stun": p.getStun(),
                     "move_stack": p.getMove(),
                     "stunned": p.getStun() > 0,
+                    "is_royal": getattr(p, "getIsRoyal", lambda: False)(),
                 }
 
     def pockets(self, color: str) -> Dict[str, int]:
@@ -212,6 +213,72 @@ class ChessEngineAdapter:
             from_square = pgn.getFromSquare()
             successions.append((from_square[0], from_square[1]))
         return successions
+
+    def is_royal(self, file: int, rank: int) -> bool:
+        """지정 칸 기물이 로얄인지 확인."""
+        try:
+            p = self._board(file, rank)
+            return bool(p.getIsRoyal())
+        except Exception:
+            return False
+
+    def disguise_options(self, file: int, rank: int) -> List[str]:
+        """해당 로얄 기물이 선택할 수 있는 위장 후보 기물 심볼 목록 반환."""
+        try:
+            mover_color = self._board(file, rank).getColor()
+        except Exception:
+            return []
+        try:
+            pgns = self._board.calcLegalDisguise(mover_color)
+        except Exception:
+            return []
+
+        options: List[str] = []
+        for pgn in pgns:
+            try:
+                fs = pgn.getFromSquare()
+                if fs[0] != file or fs[1] != rank:
+                    continue
+                sym = PIECE_TYPE_TO_STR.get(pgn.getPieceType(), "?")
+                if sym and sym not in options:
+                    options.append(sym)
+            except Exception:
+                continue
+        return options
+
+    def disguise(self, file: int, rank: int, piece_type_str: str) -> bool:
+        """로얄 기물을 지정한 타입으로 위장."""
+        pt = STR_TO_PIECE_TYPE.get(piece_type_str)
+        if pt is None:
+            return False
+        try:
+            mover_color = self._board(file, rank).getColor()
+        except Exception:
+            return False
+        try:
+            pgns = self._board.calcLegalDisguise(mover_color)
+        except Exception:
+            return False
+
+        chosen = None
+        for pgn in pgns:
+            try:
+                fs = pgn.getFromSquare()
+                if fs[0] == file and fs[1] == rank and pgn.getPieceType() == pt:
+                    chosen = pgn
+                    break
+            except Exception:
+                continue
+
+        if chosen is None:
+            return False
+
+        try:
+            self._board.updatePiece(chosen)
+        except Exception:
+            return False
+        self._last_move = ((file, rank), (file, rank))
+        return True
 
     def move(self, src: Tuple[int, int], dst: Tuple[int, int]) -> bool:
         """
@@ -424,16 +491,20 @@ class ChessEngineAdapter:
         except Exception:
             return False
 
-    def end_turn(self):
-        """턴 종료, 색상 교체"""
+    def end_turn(self, flip: bool = False):
+        """턴 종료 시 스택 처리. flip=True일 때만 턴을 넘긴다 (updatePiece를 거치지 않은 행동용)."""
         current = self.turn
         for f in range(8):
             for r in range(8):
                 p = self._board(f, r)
-                if p.getStun() != 0 and  p.getColor() == STR_TO_COLOR_TYPE.get(current):
+                if p.getStun() != 0 and p.getColor() == STR_TO_COLOR_TYPE.get(current):
                     p.addStun(-1)
                     p.addMove(1)
-        # 턴 전환은 엔진(chessboard::updatePiece)이 책임지므로 여기서는 수행하지 않음
+        if flip:
+            try:
+                self._board.swapTurn()
+            except Exception:
+                pass
 
     def next_drop_kind(self, current: str) -> str:
         """드롭 기물 종류 순환"""

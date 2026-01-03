@@ -24,6 +24,12 @@ class UIState:
     promotion_from: Optional[Tuple[int, int]] = None
     promotion_to: Optional[Tuple[int, int]] = None
 
+    # Disguise selection state (royal-only)
+    disguising: bool = False
+    disguise_choices: List[str] = field(default_factory=list)
+    disguise_index: int = 0
+    disguise_from: Optional[Tuple[int, int]] = None
+
     # Bot settings
     bot_enabled: bool = False
     bot_color: str = "black"  # "white" or "black"

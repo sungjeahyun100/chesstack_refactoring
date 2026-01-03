@@ -113,6 +113,9 @@ namespace agent{
         history.clear();
         root_pv.clear();
         nodes_searched = 0;
+        // TT는 검색 간에 남겨두면 이후 러닝이 비정상적으로 빨라질 수 있으니 초기화
+        tt_table.assign(tt_size, TTEntry{});
+        current_zobrist = 0ULL;
     }
 
     int minimax::static_exchange_eval(const PGN &m, const chessboard &b) const {
@@ -349,6 +352,12 @@ namespace agent{
             xor_piece_slot(h, zobrist_pieces, from.first, from.second, placed);
         } else if(mT == moveType::SUCCESION){
             // no zobrist effect (we don't track royalty)
+        } else if(mT == moveType::DISGUISE){
+            // disguise: same square, same color, piece type changes
+            const piece &oldp = b.at(from.first, from.second);
+            xor_piece_slot(h, zobrist_pieces, from.first, from.second, oldp); // remove old type
+            piece disguised(oldp.getColor(), pT);
+            xor_piece_slot(h, zobrist_pieces, from.first, from.second, disguised); // add new type
         }
     }
 
@@ -473,6 +482,12 @@ namespace agent{
             if(pgn.getColorType() == player) res.push_back(pgn);
         }
 
+        // collect legal disguise PGNs and append
+        auto disguises = simulate_board.calcLegalDisguise(player);
+        for(const auto &pgn : disguises){
+            if(pgn.getColorType() == player) res.push_back(pgn);
+        }
+
         return res;
     }
 
@@ -563,6 +578,7 @@ namespace agent{
                 // update hash incrementally, apply move
                 update_zobrist_for_move(current_zobrist, mv, simulate_board, player);
                 simulate_board.updatePiece(mv);
+                bool allow_royal_adjudication = simulate_board.getLogSize() >= 2; // 로그가 비어있거나 백만 둔 경우에는 미결로 둔다
                 // check royals after move: opponent or self may have lost their last royal
                 colorType other = (player == colorType::WHITE ? colorType::BLACK : colorType::WHITE);
                 bool opp_has_royal = false;
@@ -581,12 +597,12 @@ namespace agent{
                     }
                 }
                 int score;
-                if(!self_has_royal){
+                if(!self_has_royal && allow_royal_adjudication){
                     // mover lost their last royal -> immediate loss for mover
                     score = (player == cT) ? (-MATE_SCORE + ply) : (MATE_SCORE - ply);
                     simulate_board.undoBoard();
                     update_zobrist_for_move(current_zobrist, mv, simulate_board, player); // revert
-                } else if(!opp_has_royal){
+                } else if(!opp_has_royal && allow_royal_adjudication){
                     // opponent has no royals -> mate for the side who just moved
                     score = (player == cT) ? (MATE_SCORE - ply) : (-MATE_SCORE + ply);
                     // undo and revert hash
@@ -617,6 +633,7 @@ namespace agent{
                 std::vector<PGN> child_pv;
                 update_zobrist_for_move(current_zobrist, mv, simulate_board, player);
                 simulate_board.updatePiece(mv);
+                bool allow_royal_adjudication = simulate_board.getLogSize() >= 2; // 로그가 비어있거나 백만 둔 경우에는 미결로 둔다
                 // check royals after move for immediate loss/win
                 colorType other = (player == colorType::WHITE ? colorType::BLACK : colorType::WHITE);
                 bool opp_has_royal = false;
@@ -635,11 +652,11 @@ namespace agent{
                     }
                 }
                 int score;
-                if(!self_has_royal){
+                if(!self_has_royal && allow_royal_adjudication){
                     score = (player == cT) ? (-MATE_SCORE + ply) : (MATE_SCORE - ply);
                     simulate_board.undoBoard();
                     update_zobrist_for_move(current_zobrist, mv, simulate_board, player);
-                } else if(!opp_has_royal){
+                } else if(!opp_has_royal && allow_royal_adjudication){
                     score = (player == cT) ? (MATE_SCORE - ply) : (-MATE_SCORE + ply);
                     simulate_board.undoBoard();
                     update_zobrist_for_move(current_zobrist, mv, simulate_board, player);
@@ -754,6 +771,7 @@ namespace agent{
                 // update zobrist + apply move
                 update_zobrist_for_move(current_zobrist, mv, simulate_board, player);
                 simulate_board.updatePiece(mv);
+                bool allow_royal_adjudication = simulate_board.getLogSize() >= 2; // 로그가 비어있거나 백만 둔 경우에는 미결로 둔다
                 // check mate by last-royal capture or self-loss
                 colorType other_local = (player == colorType::WHITE ? colorType::BLACK : colorType::WHITE);
                 bool opp_has_royal_local = false;
@@ -772,11 +790,11 @@ namespace agent{
                     }
                 }
                 int score_q;
-                if(!self_has_royal_local){
+                if(!self_has_royal_local && allow_royal_adjudication){
                     score_q = (player == cT) ? (-MATE_SCORE + ply_depth) : (MATE_SCORE - ply_depth);
                     simulate_board.undoBoard();
                     update_zobrist_for_move(current_zobrist, mv, simulate_board, player);
-                } else if(!opp_has_royal_local){
+                } else if(!opp_has_royal_local && allow_royal_adjudication){
                     score_q = (player == cT) ? (MATE_SCORE - ply_depth) : (-MATE_SCORE + ply_depth);
                     simulate_board.undoBoard();
                     update_zobrist_for_move(current_zobrist, mv, simulate_board, player);
@@ -799,6 +817,7 @@ namespace agent{
             for(const auto &mv : moves){
                 update_zobrist_for_move(current_zobrist, mv, simulate_board, player);
                 simulate_board.updatePiece(mv);
+                bool allow_royal_adjudication = simulate_board.getLogSize() >= 2; // 로그가 비어있거나 백만 둔 경우에는 미결로 둔다
                 colorType other_local = (player == colorType::WHITE ? colorType::BLACK : colorType::WHITE);
                 bool opp_has_royal_local = false;
                 bool self_has_royal_local = false;
@@ -816,11 +835,11 @@ namespace agent{
                     }
                 }
                 int score_q;
-                if(!self_has_royal_local){
+                if(!self_has_royal_local && allow_royal_adjudication){
                     score_q = (player == cT) ? (-MATE_SCORE + ply_depth) : (MATE_SCORE - ply_depth);
                     simulate_board.undoBoard();
                     update_zobrist_for_move(current_zobrist, mv, simulate_board, player);
-                } else if(!opp_has_royal_local){
+                } else if(!opp_has_royal_local && allow_royal_adjudication){
                     score_q = (player == cT) ? (MATE_SCORE - ply_depth) : (-MATE_SCORE + ply_depth);
                     simulate_board.undoBoard();
                     update_zobrist_for_move(current_zobrist, mv, simulate_board, player);

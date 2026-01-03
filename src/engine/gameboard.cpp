@@ -76,6 +76,13 @@ void chessboard::succesionPiece(int file, int rank)
     board[file][rank].setRoyal(true);
 }
 
+void chessboard::disguisePiece(int file, int rank, pieceType targetType)
+{
+    board[file][rank].setPieceType(targetType);
+    // 위장 후에도 로얄 속성은 유지되어야 함
+    board[file][rank].setRoyal(true);
+}
+
 void chessboard::shiftPiece(int p1_file, int p1_rank, int p2_file, int p2_rank)
 {
     if(board[p1_file][p1_rank].isEmpty() == true){
@@ -368,6 +375,47 @@ std::vector<PGN> chessboard::calcLegalSuccesion(colorType cT)
     return result;
 }
 
+std::vector<PGN> chessboard::calcLegalDisguise(colorType cT)
+{
+    std::vector<PGN> result;
+    std::array<bool, NUMBER_OF_PIECEKIND> ownTypes{};
+
+    // 보드에 존재하는 자신의 기물 종류 수집
+    for(int file = 0; file < BOARDSIZE; ++file){
+        for(int rank = 0; rank < BOARDSIZE; ++rank){
+            const piece& pc = board[file][rank];
+            if(pc.isEmpty()) continue;
+            if(pc.getColor() != cT) continue;
+
+            int idx = static_cast<int>(pc.getPieceType());
+            if(idx >= 0 && idx < NUMBER_OF_PIECEKIND){
+                ownTypes[idx] = true;
+            }
+        }
+    }
+
+    // 로얄 피스가 선택 가능한 위장 후보 생성
+    for(int file = 0; file < BOARDSIZE; ++file){
+        for(int rank = 0; rank < BOARDSIZE; ++rank){
+            const piece& pc = board[file][rank];
+            if(pc.isEmpty()) continue;
+            if(pc.getColor() != cT) continue;
+            if(!pc.getIsRoyal()) continue;
+
+            for(int idx = 0; idx < NUMBER_OF_PIECEKIND; ++idx){
+                if(!ownTypes[idx]) continue;
+
+                pieceType target = static_cast<pieceType>(idx);
+                if(target == pieceType::NONE) continue;
+
+                result.push_back(PGN(cT, file, rank, target, moveType::DISGUISE));
+            }
+        }
+    }
+
+    return result;
+}
+
 void chessboard::updatePiece(PGN pgn)
 {
     auto mT = pgn.getMoveType();
@@ -382,6 +430,7 @@ void chessboard::updatePiece(PGN pgn)
     if(mT == moveType::MOVE || mT == moveType::PROMOTE) legal_move = calcLegalMovesInOnePiece(turn_right, fromSquare.first, fromSquare.second, false);
     else if(mT == moveType::ADD) legal_move = calcLegalPlacePiece(turn_right);
     else if(mT == moveType::SUCCESION) legal_move = calcLegalSuccesion(turn_right);
+    else if(mT == moveType::DISGUISE) legal_move = calcLegalDisguise(turn_right);
 
     if(legal_move.empty()){
         return;
@@ -421,6 +470,8 @@ void chessboard::updatePiece(PGN pgn)
         placePiece(cT, pT, fromSquare.first, fromSquare.second);
     }else if(mT == moveType::SUCCESION){
         succesionPiece(fromSquare.first, fromSquare.second);
+    }else if(mT == moveType::DISGUISE){
+        disguisePiece(fromSquare.first, fromSquare.second, pT);
     }else if(mT == moveType::PROMOTE){
         cT = board[fromSquare.first][fromSquare.second].getColor();
         switch (tT)

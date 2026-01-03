@@ -109,6 +109,7 @@ struct piece{
             move_stack = m; 
         }
         void setColor(colorType ct){ cT = ct; }
+        void setPieceType(pieceType pt){ pT = pt; }
         void setRoyal(bool royalty){ isRoyal = royalty; }
 
         //스택 조작 핼퍼 함수
@@ -184,6 +185,10 @@ struct PGN{
 
         PGN(colorType ct, int fF, int fR, pieceType pt) :
         mT(moveType::ADD), fromFile(fF), fromRank(fR), tT(threatType::NONE), toFile(0), toRank(0), cT(ct), pT(pt) { //착수 표현
+        }
+
+        PGN(colorType ct, int fF, int fR, pieceType pt, moveType mt) :
+        mT(mt), fromFile(fF), fromRank(fR), tT(threatType::NONE), toFile(0), toRank(0), cT(ct), pT(pt) { //위장/확장 표현
         }
 
         bool operator==(const PGN& compare) const {
@@ -282,6 +287,7 @@ class chessboard{
         void movePiece(int start_file, int start_rank, int end_file, int end_rank);
         void removePiece(int file, int rank);
         void succesionPiece(int file, int rank);
+        void disguisePiece(int file, int rank, pieceType targetType);
         void shiftPiece(int p1_file, int p1_rank, int p2_file, int p2_rank);
         void promotePiece(colorType cT, int file, int rank, pieceType promote);
         void setVarientPiece(){
@@ -315,6 +321,7 @@ class chessboard{
         //calc_potential은 스택을 무시하고 이 기물이 잠재적으로 할 수 있는 행위를 계산하겠다는 뜻이다.
         std::vector<PGN> calcLegalPlacePiece(colorType cT);//특정 색상의 플레이어가 기물을 놓을 수 있는 착수 지점을 계산 (착수 PGN 반환)
         std::vector<PGN> calcLegalSuccesion(colorType cT);//승격 가능한 상태인지, 그리고 어떤 기물을 승격시킬 수 있는지를 계산 (계승 PGN반환)
+        std::vector<PGN> calcLegalDisguise(colorType cT);//로얄 피스 위장 (위장 PGN 반환)
 
         //행마법에 따라 보드를 조작하는 함수
         void updatePiece(PGN pgn); //기물의 threatType에 따라 보드 상태를 업데이트
@@ -332,6 +339,7 @@ class chessboard{
 		const std::array<int, NUMBER_OF_PIECEKIND>& getWhitePocket() const { return whitePocket; }
 		const std::array<int, NUMBER_OF_PIECEKIND>& getBlackPocket() const { return blackPocket; }
         colorType getTurn() const { return turn_right; }
+        void swapTurn() { turn_right = (turn_right == colorType::WHITE) ? colorType::BLACK : colorType::WHITE; }
 
         void controllPocketValue(colorType cT, pieceType pT, int amount) {
             if(cT == colorType::WHITE){

@@ -53,7 +53,8 @@ enum class moveType{
     MOVE,
     ADD,
     SUCCESION,
-    PROMOTE
+    PROMOTE,
+    DISGUISE
 };
 
 

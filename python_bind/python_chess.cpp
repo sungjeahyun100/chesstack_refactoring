@@ -51,6 +51,7 @@ PYBIND11_MODULE(chess_ext, m) {
 		.value("ADD", moveType::ADD)
 		.value("SUCCESION", moveType::SUCCESION)
 		.value("PROMOTE", moveType::PROMOTE)
+		.value("DISGUISE", moveType::DISGUISE)
 		.export_values();
 
 	// PGN
@@ -59,6 +60,7 @@ PYBIND11_MODULE(chess_ext, m) {
 		.def(py::init<colorType, threatType, int, int, int, int>())  // 이동 표현
 		.def(py::init<colorType, threatType, int, int, int, int, pieceType>())  // 승격 표현
 		.def(py::init<colorType, int, int, moveType>())  // 계승 표현
+		.def(py::init<colorType, int, int, pieceType, moveType>())  // 위장 표현
 		.def(py::init<colorType, int, int, pieceType>())  // 착수 표현
 		.def("getFromSquare", &PGN::getFromSquare)
 		.def("getToSquare", &PGN::getToSquare)
@@ -115,6 +117,8 @@ PYBIND11_MODULE(chess_ext, m) {
 		.def("calcLegalMovesInOnePiece", &chessboard::calcLegalMovesInOnePiece)
 		.def("calcLegalPlacePiece", &chessboard::calcLegalPlacePiece)
 		.def("calcLegalSuccesion", &chessboard::calcLegalSuccesion)
+		.def("calcLegalDisguise", &chessboard::calcLegalDisguise)
+		.def("swapTurn", &chessboard::swapTurn)
 		.def("updatePiece", &chessboard::updatePiece)
 		.def("pieceStackControllByColor", &chessboard::pieceStackControllByColor)
 		.def("getWhitePocket", [](const chessboard &b) { return b.getWhitePocket(); })

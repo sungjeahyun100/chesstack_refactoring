@@ -151,6 +151,7 @@ def draw_controls(screen, info_font, start_y: int, friend_mode: bool) -> int:
         "  Click pocket -> board to drop",
         "  Click piece -> target to move",
         "  Double-click piece: succession/stun menu",
+        "  Double-click royal: disguise menu",
         "  R reset | Q/Esc quit",
     ]
     if friend_mode:
@@ -281,6 +282,28 @@ def draw_promotion_overlay(ui: UIState, screen, info_font, panel_width: int):
         x += box_w + spacing
 
 
+def draw_disguise_overlay(ui: UIState, screen, info_font, panel_width: int):
+    if not (ui.disguising and ui.disguise_choices):
+        return
+    area = pygame.Rect(BOARD_PX + 10, BOARD_PX - 270, panel_width - 20, 80)
+    pygame.draw.rect(screen, (45, 55, 70), area)
+    pygame.draw.rect(screen, (150, 170, 220), area, 2)
+    title = info_font.render("Select Disguise", True, (255, 255, 255))
+    screen.blit(title, (area.x + 8, area.y + 6))
+    x = area.x + 8
+    y = area.y + 30
+    box_w, box_h = 56, 28
+    spacing = 8
+    for i, sym in enumerate(ui.disguise_choices):
+        rect = pygame.Rect(x, y, box_w, box_h)
+        color = (200, 190, 120) if i == ui.disguise_index else (100, 110, 130)
+        pygame.draw.rect(screen, color, rect)
+        pygame.draw.rect(screen, (230, 230, 240), rect, 2)
+        t = info_font.render(sym, True, (15, 15, 25))
+        screen.blit(t, t.get_rect(center=rect.center))
+        x += box_w + spacing
+
+
 def draw_special_action_overlay(ui: UIState, screen, info_font, panel_width: int):
     if not ui.special_menu:
         return []
@@ -323,6 +346,7 @@ def draw(engine, ui: UIState, screen, font, info_font, mouse_pos=None, friend_mo
         draw_debug_button(screen, info_font, dbg_btn, ui)
     draw_debug_overlay(engine, ui, screen, info_font)
     draw_promotion_overlay(ui, screen, info_font, panel_width)
+    draw_disguise_overlay(ui, screen, info_font, panel_width)
     special_rects = draw_special_action_overlay(ui, screen, info_font, panel_width)
 
     return dbg_btn, pocket_rects, special_rects, bot_rects
