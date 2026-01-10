@@ -54,6 +54,13 @@ class UIState:
     special_square: Optional[Tuple[int, int]] = None
     special_options: List[str] = field(default_factory=list)
 
+    # Multiple-action selection (when same target has multiple PGNs)
+    action_menu: bool = False
+    action_choices: List[str] = field(default_factory=list)
+    action_index: int = 0
+    action_src: Optional[Tuple[int, int]] = None
+    action_dst: Optional[Tuple[int, int]] = None
+
     # Victory overlay (render-only; toggled externally)
     victory_visible: bool = False
     victory_winner: Optional[str] = None  # 'white' | 'black' | None

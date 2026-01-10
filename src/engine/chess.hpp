@@ -10,7 +10,7 @@
 #include <stdexcept>
 
 constexpr int BOARDSIZE = 8;
-constexpr int NUMBER_OF_PIECEKIND = 16;
+constexpr int NUMBER_OF_PIECEKIND = 17;
 
 // Forward declarations for spec registry (placed after moveChunk definition)
 
@@ -245,7 +245,8 @@ class chessboard{
                 0, //frez
                 0, //centaur
                 0, //camel
-                0  //tempest rook
+                0, //tempest rook
+                0  //samurai
             };
             blackPocket = {1, 1, 2, 2, 2, 8, //king queen bishop knight rook pwan
                 0, //amazon
@@ -257,7 +258,8 @@ class chessboard{
                 0, //frez
                 0, //centaur
                 0, //camel
-                0  //tempest rook
+                0, //tempest rook
+                0  //samurai
             };
         }
 
@@ -307,7 +309,8 @@ class chessboard{
                 1, //frez
                 1, //centaur
                 1, //camel
-                1  //tempest rook
+                1, //tempest rook
+                1  //samurai
             };
             blackPocket = {1, 1, 2, 2, 2, 8, //king queen bishop knight rook pwan
                 1, //amazon
@@ -319,7 +322,8 @@ class chessboard{
                 1, //frez
                 1, //centaur
                 1, //camel
-                1  //tempest rook
+                1, //tempest rook
+                1  //samurai
             };
         }
         void setThisIsCustom(bool t){ custom_position = t; }

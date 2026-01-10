@@ -41,6 +41,9 @@ void piece::setupStunStack(){
         case pieceType::FERZ:
             stun_stack = 1;
             break;
+        case pieceType::SAMURAI:
+            stun_stack = 8;
+            break;
         case pieceType::PWAN:
             stun_stack = 1; // 기본값, 실제로는 setupStunStackWithPosition에서 위치 기반으로 재설정됨
             break;

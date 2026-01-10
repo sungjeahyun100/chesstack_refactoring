@@ -41,6 +41,7 @@ PIECE_TYPE_TO_STR = {
     chess_ext.PieceType.CENTAUR: "C",
     chess_ext.PieceType.CAMEL: "Cl",
     chess_ext.PieceType.TEMPESTROOK: "Tr",
+    chess_ext.PieceType.SAMURAI: "Sa",
     chess_ext.PieceType.NONE: "",
 }
 
@@ -107,6 +108,18 @@ class ChessEngineAdapter:
                     "stunned": p.getStun() > 0,
                     "is_royal": getattr(p, "getIsRoyal", lambda: False)(),
                 }
+    
+    def setPoketValue(self, color: str, type: str, amount: int):
+        if color == "white":
+            cT = chess_ext.ColorType.WHITE
+        elif color == "black":
+            cT = chess_ext.ColorType.BLACK
+        else:
+            return {}
+        
+        pT = STR_TO_PIECE_TYPE.get(type)
+
+        self._board.controllPocketValue(cT, pT, amount)
 
     def pockets(self, color: str) -> Dict[str, int]:
         """포켓의 기물 개수 반환 (색상별)"""
@@ -345,6 +358,114 @@ class ChessEngineAdapter:
         except Exception:
             return False
 
+    def get_move_candidates(self, src: Tuple[int, int], dst: Tuple[int, int]) -> List[Dict]:
+        """Return a list of candidate PGNs (as small dicts) that move src->dst."""
+        sf, sr = src
+        df, dr = dst
+        candidates: List[Dict] = []
+        try:
+            mover_color = self._board(sf, sr).getColor()
+        except Exception:
+            return candidates
+        try:
+            legal_pgns = self._board.calcLegalMovesInOnePiece(mover_color, sf, sr, False)
+        except Exception:
+            return candidates
+
+        def _clean_token(token: str) -> str:
+            t = token.split('.')[-1]
+            lt = t.lower()
+            if lt.startswith('move'):
+                t = t[len('move'):]
+                # strip common separators
+                if t.startswith('_') or t.startswith('-'):
+                    t = t[1:]
+            return t
+
+        for idx, pgn in enumerate(legal_pgns):
+            try:
+                to_f, to_r = pgn.getToSquare()
+                if to_f != df or to_r != dr:
+                    continue
+                # Build a readable description
+                desc_parts = []
+                try:
+                    mt = pgn.getMoveType()
+                    desc_parts.append(_clean_token(str(mt)))
+                except Exception:
+                    pass
+                try:
+                    tt = pgn.getThreatType()
+                    desc_parts.append(_clean_token(str(tt)))
+                except Exception:
+                    pass
+                try:
+                    pt = pgn.getPieceType()
+                    sym = PIECE_TYPE_TO_STR.get(pt, "?")
+                    if sym:
+                        desc_parts.append(sym)
+                except Exception:
+                    pass
+                desc = " ".join(desc_parts) if desc_parts else f"action_{idx}"
+                candidates.append({"index": idx, "desc": desc})
+            except Exception:
+                continue
+        return candidates
+
+    def move_with_choice(self, src: Tuple[int, int], dst: Tuple[int, int], choice_index: int) -> bool:
+        """Perform move by selecting the choice_index-th matching PGN for src->dst."""
+        sf, sr = src
+        df, dr = dst
+        try:
+            mover_color = self._board(sf, sr).getColor()
+        except Exception:
+            return False
+        try:
+            legal_pgns = self._board.calcLegalMovesInOnePiece(mover_color, sf, sr, False)
+        except Exception:
+            return False
+
+        matches = []
+        for pgn in legal_pgns:
+            try:
+                to_f, to_r = pgn.getToSquare()
+                if to_f == df and to_r == dr:
+                    matches.append(pgn)
+            except Exception:
+                continue
+        if choice_index < 0 or choice_index >= len(matches):
+            return False
+        chosen = matches[choice_index]
+
+        # preserve capture stacks similar to move()/promote_move()
+        captured_stun = 0
+        captured_move = 0
+        try:
+            mover_color = self._board(sf, sr).getColor()
+            target_piece = self._board(df, dr)
+            if target_piece.getPieceType() != chess_ext.PieceType.NONE and target_piece.getColor() != mover_color:
+                self._board.controllPocketValue(mover_color, target_piece.getPieceType(), 1)
+                captured_stun = target_piece.getStun()
+                captured_move = target_piece.getMove()
+        except Exception:
+            pass
+
+        try:
+            self._board.updatePiece(chosen)
+        except Exception:
+            return False
+        try:
+            moved_piece = self._board(df, dr)
+            if captured_stun:
+                moved_piece.addStun(captured_stun)
+            if captured_move:
+                moved_piece.addMove(captured_move)
+            moved_piece.minusOneMove()
+        except Exception:
+            pass
+        self._last_move = (src, dst)
+        return True
+
     def promotion_options(self, src: Tuple[int, int], dst: Tuple[int, int]) -> List[str]:
         """
         src->dst가 프로모션일 경우 선택 가능한 승격 기물 심볼 리스트를 반환.
@@ -516,7 +637,7 @@ class ChessEngineAdapter:
         for f in range(8):
             for r in range(8):
                 p = self._board(f, r)
-                if p.getStun() != 0 and p.getColor() == STR_TO_COLOR_TYPE.get(current):
+                if p.getStun() != 0 and p.getColor() != STR_TO_COLOR_TYPE.get(current):
                     p.addStun(-1)
                     p.addMove(1)
         if flip:

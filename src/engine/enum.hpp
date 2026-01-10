@@ -18,7 +18,8 @@ enum class pieceType{
     FERZ,
     CENTAUR,
     CAMEL,
-    TEMPESTROOK
+    TEMPESTROOK,
+    SAMURAI
 };
 
 enum class colorType{

@@ -32,6 +32,8 @@ def main(engine):
 
     while True:
         engine.reset()
+        engine.setPoketValue("white", "Sa", 1)
+        engine.setPoketValue("black", "Sa", 1)
         ui = UIState()
         running = True
         friend_mode = False
@@ -273,6 +275,49 @@ def main(engine):
                                 x += box_w + spacing
                             continue
 
+                    # Action selection overlay (when multiple candidate PGNs target same square)
+                    if ui.action_menu and ui.action_choices:
+                        panel_width = INFO_W + (DEBUG_W if ui.debug else 0)
+                        area = pygame.Rect(BOARD_PX + 10, BOARD_PX - 190, panel_width - 20, 80)
+                        if area.collidepoint(ev.pos):
+                            x = area.x + 8
+                            y = area.y + 30
+                            box_w, box_h = 200, 28
+                            spacing = 8
+                            handled = False
+                            for i, txt in enumerate(ui.action_choices):
+                                rect = pygame.Rect(x, y, box_w, box_h)
+                                if rect.collidepoint(ev.pos):
+                                    ok = engine.move_with_choice(ui.action_src, ui.action_dst, i)
+                                    if ok:
+                                        engine.end_turn()
+                                        ui.status = "Moved (turn ended)"
+                                        ui.analysis_dirty = True
+                                    else:
+                                        ui.status = "Move failed"
+                                    ui.action_menu = False
+                                    ui.action_choices = []
+                                    ui.action_index = 0
+                                    ui.action_src = None
+                                    ui.action_dst = None
+                                    ui.selected = None
+                                    ui.targets = []
+                                    handled = True
+                                    break
+                                x += box_w + spacing
+                                if x + box_w > area.x + area.w:
+                                    x = area.x + 8
+                                    y += box_h + 6
+                            if handled:
+                                continue
+                        else:
+                            # click outside overlay dismisses it
+                            ui.action_menu = False
+                            ui.action_choices = []
+                            ui.action_index = 0
+                            ui.action_src = None
+                            ui.action_dst = None
+
                     sq = board_from_mouse(ev.pos)
                     if sq:
                         x, y = sq
@@ -324,15 +369,30 @@ def main(engine):
                                         ui.promotion_to = (x, y)
                                         ui.status = f"Choose promotion ({', '.join(opts)})"
                                     else:
-                                        ok = engine.move(ui.selected, (x, y))
-                                        if ok:
-                                            engine.end_turn()
-                                            ui.status = "Moved (turn ended)"
-                                            ui.analysis_dirty = True
+                                        # Check if multiple PGNs target the same square
+                                        candidates = engine.get_move_candidates(ui.selected, (x, y))
+                                        if len(candidates) > 1:
+                                            # open selection overlay for user to choose
+                                            ui.action_menu = True
+                                            ui.action_choices = [c["desc"] for c in candidates]
+                                            ui.action_index = 0
+                                            ui.action_src = ui.selected
+                                            ui.action_dst = (x, y)
+                                            ui.status = "Multiple actions available; choose one"
                                         else:
-                                            ui.status = "Move failed"
-                                        ui.selected = None
-                                        ui.targets = []
+                                            # single or none: perform move (if single)
+                                            if len(candidates) == 1:
+                                                ok = engine.move_with_choice(ui.selected, (x, y), 0)
+                                            else:
+                                                ok = engine.move(ui.selected, (x, y))
+                                            if ok:
+                                                engine.end_turn()
+                                                ui.status = "Moved (turn ended)"
+                                                ui.analysis_dirty = True
+                                            else:
+                                                ui.status = "Move failed"
+                                            ui.selected = None
+                                            ui.targets = []
                                 else:
                                     ui.status = "Not a legal target"
 
@@ -383,7 +443,7 @@ def main(engine):
                     ui.status = f"{winner} wins"
 
             screen.fill((0,0,0))
-            dbg_btn, pocket_rects, special_rects, bot_rects = draw(engine, ui, screen, font, info_font, mouse_pos=pygame.mouse.get_pos(), friend_mode=friend_mode)
+            dbg_btn, pocket_rects, special_rects, action_rects, bot_rects = draw(engine, ui, screen, font, info_font, mouse_pos=pygame.mouse.get_pos(), friend_mode=friend_mode)
             # 메뉴 버튼 (우상단)
             hover_menu = menu_btn.collidepoint(pygame.mouse.get_pos())
             base_fill = (70, 70, 90)

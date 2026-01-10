@@ -110,6 +110,11 @@ static PieceSpec makeSpec(pieceType pt, colorType ct) {
             spec.moves.push_back(moveChunk(threatType::TAKEMOVE, {-1,1}, {{0,1},{-1,0}}));
             spec.moves.push_back(moveChunk(threatType::TAKEMOVE, {-1,-1}, {{0,-1},{-1,0}}));
             break;
+        case pieceType::SAMURAI:
+            spec.moves.push_back(moveChunk(threatType::TAKEMOVE, {0, 0}, EIGHT_WAY_DIRECTIONS, 1));
+            spec.moves.push_back(moveChunk(threatType::CATCH, {0, 0}, EIGHT_WAY_DIRECTIONS, 1));
+            spec.moves.push_back(moveChunk(threatType::SHIFT, {0, 0}, EIGHT_WAY_DIRECTIONS, 1));
+            break;
         default:
             break;
     }

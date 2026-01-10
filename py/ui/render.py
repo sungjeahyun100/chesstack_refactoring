@@ -328,6 +328,35 @@ def draw_special_action_overlay(ui: UIState, screen, info_font, panel_width: int
     return rects
 
 
+def draw_action_overlay(ui: UIState, screen, info_font, panel_width: int):
+    """When a single target square has multiple candidate PGNs, show choices."""
+    if not ui.action_menu or not ui.action_choices:
+        return []
+    area = pygame.Rect(BOARD_PX + 10, BOARD_PX - 190, panel_width - 20, 80)
+    pygame.draw.rect(screen, (40, 40, 60), area)
+    pygame.draw.rect(screen, (140, 140, 200), area, 2)
+    title = info_font.render("Choose Action", True, (255, 255, 255))
+    screen.blit(title, (area.x + 8, area.y + 6))
+    x = area.x + 8
+    y = area.y + 30
+    box_w, box_h = 200, 28
+    spacing = 8
+    rects = []
+    for i, txt in enumerate(ui.action_choices):
+        rect = pygame.Rect(x, y, box_w, box_h)
+        color = (200, 180, 100) if i == ui.action_index else (100, 100, 100)
+        pygame.draw.rect(screen, color, rect)
+        pygame.draw.rect(screen, (220, 220, 240), rect, 2)
+        t = info_font.render(txt, True, (20, 20, 20))
+        screen.blit(t, t.get_rect(center=rect.center))
+        rects.append((i, rect))
+        x += box_w + spacing
+        if x + box_w > area.x + area.w:
+            x = area.x + 8
+            y += box_h + 6
+    return rects
+
+
 def draw_victory_overlay(ui: UIState, screen, info_font, panel_width: int):
     """Game over popup. Visibility is controlled by ui.victory_visible flag."""
     if not ui.victory_visible:
@@ -389,7 +418,8 @@ def draw(engine, ui: UIState, screen, font, info_font, mouse_pos=None, friend_mo
     draw_debug_overlay(engine, ui, screen, info_font)
     draw_promotion_overlay(ui, screen, info_font, panel_width)
     draw_disguise_overlay(ui, screen, info_font, panel_width)
+    action_rects = draw_action_overlay(ui, screen, info_font, panel_width)
     draw_victory_overlay(ui, screen, info_font, panel_width)
     special_rects = draw_special_action_overlay(ui, screen, info_font, panel_width)
 
-    return dbg_btn, pocket_rects, special_rects, bot_rects
+    return dbg_btn, pocket_rects, special_rects, action_rects, bot_rects

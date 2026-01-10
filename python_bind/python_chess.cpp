@@ -58,6 +58,7 @@ PYBIND11_MODULE(chess_ext, m) {
 		.value("CENTAUR", pieceType::CENTAUR)
 		.value("CAMEL", pieceType::CAMEL)
 		.value("TEMPESTROOK", pieceType::TEMPESTROOK)
+		.value("SAMURAI", pieceType::SAMURAI)
 		.export_values();
 
 	py::enum_<colorType>(m, "ColorType")
