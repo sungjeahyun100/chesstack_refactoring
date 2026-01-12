@@ -92,6 +92,8 @@ def main(engine):
             dbg_baseline = BOARD_PX - 60
             menu_w, menu_h = 120, 32
             menu_btn = pygame.Rect(BOARD_PX + panel_width - 10 - menu_w, dbg_baseline - 8 - menu_h, menu_w, menu_h)
+            # Resign button sits below the menu button
+            resign_btn = pygame.Rect(menu_btn.x, menu_btn.y + menu_h + 6, menu_w, menu_h)
             # Bot type selector sits at the top-right of the side panel (only in bot/analysis modes)
             bot_btn = pygame.Rect(BOARD_PX + panel_width - 10 - 130, 10, 130, menu_h) if not friend_mode else None
 
@@ -121,6 +123,15 @@ def main(engine):
                     ui.last_click_pos = ev.pos
 
                     mx, my = ev.pos
+                    # Resign handling (click the Resign button)
+                    if resign_btn.collidepoint(ev.pos):
+                        opp = "black" if engine.turn == "white" else "white"
+                        ui.victory_visible = True
+                        ui.victory_winner = opp
+                        ui.victory_reason = "Resignation"
+                        ui.status = f"{engine.turn} resigned"
+                        continue
+
                     if menu_btn.collidepoint(ev.pos):
                         go_menu = True
                         running = False
@@ -456,6 +467,16 @@ def main(engine):
             pygame.draw.rect(screen, border_col, menu_btn, 2)
             mtxt = info_font.render("MENU", True, text_col)
             screen.blit(mtxt, mtxt.get_rect(center=menu_btn.center))
+
+            # Resign button (below menu)
+            hover_resign = resign_btn.collidepoint(pygame.mouse.get_pos())
+            r_fill = (200, 80, 80) if hover_resign else (90, 40, 40)
+            r_border = (160, 80, 80) if hover_resign else (100, 60, 60)
+            r_text = (255, 255, 255) if hover_resign else (220, 220, 220)
+            pygame.draw.rect(screen, r_fill, resign_btn)
+            pygame.draw.rect(screen, r_border, resign_btn, 2)
+            rtxt = info_font.render("RESIGN", True, r_text)
+            screen.blit(rtxt, rtxt.get_rect(center=resign_btn.center))
 
             # Bot type quick menu button (top-right)
             if bot_btn and not friend_mode:
