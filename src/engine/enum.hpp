@@ -61,7 +61,9 @@ enum class moveType{
 enum class victoryType{
     NONE=-1,
     WHITE,
-    BLACK
+    BLACK,
+    DRAW
 };
+
 
 

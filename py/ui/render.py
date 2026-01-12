@@ -378,7 +378,11 @@ def draw_victory_overlay(ui: UIState, screen, info_font, panel_width: int):
     pygame.draw.rect(screen, (60, 70, 100), box)
     pygame.draw.rect(screen, (210, 220, 255), box, 3)
 
-    title_txt = ui.victory_winner.title() + " wins!" if ui.victory_winner else "Game Over"
+    # Support explicit draw string
+    if ui.victory_winner == "draw":
+        title_txt = "Draw"
+    else:
+        title_txt = ui.victory_winner.title() + " wins!" if ui.victory_winner else "Game Over"
     reason_txt = ui.victory_reason if ui.victory_reason else ""
 
     title = info_font.render(title_txt, True, (255, 240, 200))

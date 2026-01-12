@@ -92,8 +92,9 @@ def main(engine):
             dbg_baseline = BOARD_PX - 60
             menu_w, menu_h = 120, 32
             menu_btn = pygame.Rect(BOARD_PX + panel_width - 10 - menu_w, dbg_baseline - 8 - menu_h, menu_w, menu_h)
-            # Resign button sits below the menu button
+            # Resign and Agree-Draw buttons sit below the menu button
             resign_btn = pygame.Rect(menu_btn.x, menu_btn.y + menu_h + 6, menu_w, menu_h)
+            draw_btn = pygame.Rect(menu_btn.x, resign_btn.y + menu_h + 6, menu_w, menu_h)
             # Bot type selector sits at the top-right of the side panel (only in bot/analysis modes)
             bot_btn = pygame.Rect(BOARD_PX + panel_width - 10 - 130, 10, 130, menu_h) if not friend_mode else None
 
@@ -123,14 +124,22 @@ def main(engine):
                     ui.last_click_pos = ev.pos
 
                     mx, my = ev.pos
-                    # Resign handling (click the Resign button)
-                    if resign_btn.collidepoint(ev.pos):
-                        opp = "black" if engine.turn == "white" else "white"
-                        ui.victory_visible = True
-                        ui.victory_winner = opp
-                        ui.victory_reason = "Resignation"
-                        ui.status = f"{engine.turn} resigned"
-                        continue
+                    # Resign / Draw handling (only when no victory overlay is visible)
+                    if not ui.victory_visible:
+                        if resign_btn.collidepoint(ev.pos):
+                            opp = "black" if engine.turn == "white" else "white"
+                            ui.victory_visible = True
+                            ui.victory_winner = opp
+                            ui.victory_reason = "Resignation"
+                            ui.status = f"{engine.turn} resigned"
+                            continue
+
+                        if draw_btn.collidepoint(ev.pos):
+                            ui.victory_visible = True
+                            ui.victory_winner = "draw"
+                            ui.victory_reason = "Agreement"
+                            ui.status = "Agreed draw"
+                            continue
 
                     if menu_btn.collidepoint(ev.pos):
                         go_menu = True
@@ -469,14 +478,38 @@ def main(engine):
             screen.blit(mtxt, mtxt.get_rect(center=menu_btn.center))
 
             # Resign button (below menu)
-            hover_resign = resign_btn.collidepoint(pygame.mouse.get_pos())
-            r_fill = (200, 80, 80) if hover_resign else (90, 40, 40)
-            r_border = (160, 80, 80) if hover_resign else (100, 60, 60)
-            r_text = (255, 255, 255) if hover_resign else (220, 220, 220)
+            # disable when victory overlay is visible
+            if ui.victory_visible:
+                hover_resign = False
+                r_fill = (60, 60, 60)
+                r_border = (90, 90, 90)
+                r_text = (140, 140, 140)
+            else:
+                hover_resign = resign_btn.collidepoint(pygame.mouse.get_pos())
+                r_fill = (200, 80, 80) if hover_resign else (90, 40, 40)
+                r_border = (160, 80, 80) if hover_resign else (100, 60, 60)
+                r_text = (255, 255, 255) if hover_resign else (220, 220, 220)
             pygame.draw.rect(screen, r_fill, resign_btn)
             pygame.draw.rect(screen, r_border, resign_btn, 2)
             rtxt = info_font.render("RESIGN", True, r_text)
             screen.blit(rtxt, rtxt.get_rect(center=resign_btn.center))
+
+            # Agree-Draw button (below resign)
+            # disable when victory overlay is visible
+            if ui.victory_visible:
+                hover_draw = False
+                d_fill = (60, 60, 60)
+                d_border = (90, 90, 90)
+                d_text = (140, 140, 140)
+            else:
+                hover_draw = draw_btn.collidepoint(pygame.mouse.get_pos())
+                d_fill = (80, 160, 80) if hover_draw else (40, 90, 40)
+                d_border = (120, 200, 120) if hover_draw else (80, 120, 80)
+                d_text = (255, 255, 255) if hover_draw else (220, 220, 220)
+            pygame.draw.rect(screen, d_fill, draw_btn)
+            pygame.draw.rect(screen, d_border, draw_btn, 2)
+            dtxt = info_font.render("AGREE DRAW", True, d_text)
+            screen.blit(dtxt, dtxt.get_rect(center=draw_btn.center))
 
             # Bot type quick menu button (top-right)
             if bot_btn and not friend_mode:
